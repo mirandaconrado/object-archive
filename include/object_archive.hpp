@@ -128,7 +128,7 @@ class ObjectArchive {
 
     // If results were added or removed, defragments the file and writes the new
     // header. This ensures that all objects are saved and the program can
-    // crash.
+    // crash. Automatically call unload().
     void defrag();
 
   private:

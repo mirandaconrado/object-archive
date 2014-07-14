@@ -110,7 +110,6 @@ ObjectArchive::ObjectArchive(std::string const& filename,
 }
 
 ObjectArchive::~ObjectArchive() {
-  unload();
   defrag();
 }
 
@@ -202,10 +201,10 @@ std::set<std::size_t> ObjectArchive::available_objects() const {
 }
 
 void ObjectArchive::defrag() {
+  unload();
+
   if (!must_rebuild_file_)
     return;
-
-  unload();
 
   boost::filesystem::path temp_filename;
   temp_filename = boost::filesystem::temp_directory_path();
