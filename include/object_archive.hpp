@@ -50,6 +50,8 @@ SOFTWARE.
 // ar.insert("filename", filedata);
 // ...
 // ar.load("filename", filedata);
+// ...
+// ar.remove("filename");
 
 #ifndef __OBJECT_ARCHIVE_HPP__
 #define __OBJECT_ARCHIVE_HPP__
