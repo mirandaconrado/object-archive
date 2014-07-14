@@ -60,10 +60,30 @@ TEST_F(ObjectArchiveTest, StringConstructor) {
     EXPECT_EQ(0, ar.insert(0, 0));
   }
 
-  std::fstream fs(filename.string(),
-      std::ios_base::in | std::ios_base::out | std::ios_base::binary);
-  fs.seekp(0, std::ios_base::end);
-  EXPECT_EQ(0, fs.tellp());
+  {
+    std::fstream fs(filename.string(),
+        std::ios_base::in | std::ios_base::out | std::ios_base::binary);
+    fs.seekp(0, std::ios_base::end);
+    EXPECT_EQ(0, fs.tellp());
+  }
+
+  std::size_t s1, s2;
+  {
+    ObjectArchive ar(filename.string(), "0.05k");
+    std::size_t id;
+    std::string val;
+    id = 0; val = "1";
+    s1 = ar.insert(id, val);
+    id = 2; val = "3";
+    s2 = ar.insert(id, val);
+  }
+
+  {
+    std::fstream fs(filename.string(),
+        std::ios_base::in | std::ios_base::out | std::ios_base::binary);
+    fs.seekp(0, std::ios_base::end);
+    EXPECT_EQ((1+2*3)*sizeof(std::size_t)+s1+s2, fs.tellp());
+  }
 }
 
 TEST_F(ObjectArchiveTest, Insert) {
