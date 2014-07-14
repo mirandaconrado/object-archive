@@ -26,13 +26,17 @@ SOFTWARE.
 // provided for speed.
 //
 // The object are read from file as needed and, when the buffer is full, it's
-// cleared. Although LRU policy would be preffered, it's much more complicated
+// cleared. Although LRU policy would be prefered, it's much more complicated
 // and the OS tends to buffer part of the file.
 //
 // New objects are stored in the buffer until the archive is unloaded, when they
-// are saved into a file. Hence, if a crash occurs before unloading, the objects
-// aren't saved! Unload is automatic when the archive is destroyed or when the
-// buffer gets full.
+// are saved into its file. When the archive is destroyed, its file is updated
+// to take into account the modifications during use (removes and inserts).
+// Hence, if a crash that doesn't destroy the archive occurs, the objects aren't
+// saved even if the user called the method unload()!
+//
+// To make sure that the objects are written, the user can call defrag(), which
+// will completely rebuild the file.
 //
 // Each object is referenced by an id, which by default is the hash of its key
 // unless it's an std::size_t. Hash collisions are NOT handled! The object must
@@ -122,13 +126,14 @@ class ObjectArchive {
     // Gets a list of all the results stored in this archive.
     std::set<std::size_t> available_objects() const;
 
+    // If results were added or removed, defragments the file and writes the new
+    // header. This ensures that all objects are saved and the program can
+    // crash.
+    void defrag();
+
   private:
     std::size_t internal_insert(std::size_t id, std::string const& val);
     std::size_t internal_load(std::size_t id, std::string& val);
-
-    // If results were added or removed, defragments the file and writes the new
-    // header.
-    void defrag();
 
     std::string filename_;
     bool modified_, must_rebuild_file_;

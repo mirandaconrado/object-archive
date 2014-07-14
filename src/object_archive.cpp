@@ -247,8 +247,12 @@ void ObjectArchive::defrag() {
 
   delete[] temp_buffer;
 
+  stream_.close();
   temp_stream.close();
 
   boost::filesystem::remove(filename_);
   boost::filesystem::rename(temp_filename, filename_);
+
+  stream_.open(filename_, std::ios_base::in | std::ios_base::out |
+                          std::ios_base::binary);
 }
