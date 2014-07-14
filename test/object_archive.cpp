@@ -49,8 +49,7 @@ TEST_F(ObjectArchiveTest, Empty) {
   }
 
   std::fstream fs(filename.string(),
-      std::ios_base::in | std::ios_base::out |
-      std::ios_base::binary);
+      std::ios_base::in | std::ios_base::out | std::ios_base::binary);
   fs.seekp(0, std::ios_base::end);
   EXPECT_EQ(0, fs.tellp());
 }
@@ -62,8 +61,7 @@ TEST_F(ObjectArchiveTest, StringConstructor) {
   }
 
   std::fstream fs(filename.string(),
-      std::ios_base::in | std::ios_base::out |
-      std::ios_base::binary);
+      std::ios_base::in | std::ios_base::out | std::ios_base::binary);
   fs.seekp(0, std::ios_base::end);
   EXPECT_EQ(0, fs.tellp());
 }
@@ -81,8 +79,7 @@ TEST_F(ObjectArchiveTest, Insert) {
   }
 
   std::fstream fs(filename.string(),
-      std::ios_base::in | std::ios_base::out |
-      std::ios_base::binary);
+      std::ios_base::in | std::ios_base::out | std::ios_base::binary);
   fs.seekp(0, std::ios_base::end);
   EXPECT_EQ((1+2*3)*sizeof(std::size_t)+s1+s2, fs.tellp());
 }
@@ -100,8 +97,7 @@ TEST_F(ObjectArchiveTest, InsertOverwrite) {
   }
 
   std::fstream fs(filename.string(),
-      std::ios_base::in | std::ios_base::out |
-      std::ios_base::binary);
+      std::ios_base::in | std::ios_base::out | std::ios_base::binary);
   fs.seekp(0, std::ios_base::end);
   EXPECT_EQ((1+1*3)*sizeof(std::size_t)+s1, fs.tellp());
 }
@@ -119,8 +115,7 @@ TEST_F(ObjectArchiveTest, InsertSmallBuffer) {
   }
 
   std::fstream fs(filename.string(),
-      std::ios_base::in | std::ios_base::out |
-      std::ios_base::binary);
+      std::ios_base::in | std::ios_base::out | std::ios_base::binary);
   fs.seekp(0, std::ios_base::end);
   EXPECT_EQ((1+2*3)*sizeof(std::size_t)+s1+s2, fs.tellp());
 }
@@ -135,8 +130,7 @@ TEST_F(ObjectArchiveTest, InvalidInsert) {
   }
 
   std::fstream fs(filename.string(),
-      std::ios_base::in | std::ios_base::out |
-      std::ios_base::binary);
+      std::ios_base::in | std::ios_base::out | std::ios_base::binary);
   fs.seekp(0, std::ios_base::end);
   EXPECT_EQ(0, fs.tellp());
 }
@@ -174,8 +168,7 @@ TEST_F(ObjectArchiveTest, Remove) {
 
   {
     std::fstream fs(filename.string(),
-        std::ios_base::in | std::ios_base::out |
-        std::ios_base::binary);
+        std::ios_base::in | std::ios_base::out | std::ios_base::binary);
     fs.seekp(0, std::ios_base::end);
     EXPECT_EQ((1+2*3)*sizeof(std::size_t)+s1+s2, fs.tellp());
   }
@@ -187,8 +180,7 @@ TEST_F(ObjectArchiveTest, Remove) {
 
   {
     std::fstream fs(filename.string(),
-        std::ios_base::in | std::ios_base::out |
-        std::ios_base::binary);
+        std::ios_base::in | std::ios_base::out | std::ios_base::binary);
     fs.seekp(0, std::ios_base::end);
     EXPECT_EQ((1+1*3)*sizeof(std::size_t)+s2, fs.tellp());
   }
