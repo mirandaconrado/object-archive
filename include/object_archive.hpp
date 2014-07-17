@@ -25,17 +25,16 @@ SOFTWARE.
 // This file defines a class to store many objects into a file, but a buffer is
 // provided for speed.
 //
-// The object are read from file as needed and, when the buffer is full, it's
-// cleared. Although LRU policy would be prefered, it's much more complicated
-// and the OS tends to buffer part of the file.
+// The object are read from file as needed and, when the buffer is full, they
+// are removed in a LRU fashion.
 //
-// New objects are stored in the buffer until the archive is unloaded, when they
-// are saved into its file. When the archive is destroyed, its file is updated
-// to take into account the modifications during use (removes and inserts).
-// Hence, if a crash that doesn't destroy the archive occurs, the objects aren't
-// saved even if the user called the method unload()!
+// New objects are stored in the buffer until the archive is flushed, when they
+// are saved into its file and the buffer cleared, or when some buffer slots are
+// freed. When the archive is destroyed, its file is updated to take into
+// account the modifications during use (removes and inserts). Hence, if a crash
+// that doesn't destroy the archive occurs, the objects aren't saved!
 //
-// To make sure that the objects are written, the user can call defrag(), which
+// To make sure that the objects are written, the user can call flush(), which
 // will completely rebuild the file.
 //
 // Each object is referenced by an id, which by default is the hash of its key
@@ -48,10 +47,11 @@ SOFTWARE.
 // Example:
 // ObjectArchive ar("path/to/file", "1.5G");
 // ar.insert("filename", filedata);
-// ...
+// [do some stuff]
 // ar.load("filename", filedata);
-// ...
+// [filedata has the previous value again]
 // ar.remove("filename");
+// [filedata keeps its value]
 
 #ifndef __OBJECT_ARCHIVE_HPP__
 #define __OBJECT_ARCHIVE_HPP__
