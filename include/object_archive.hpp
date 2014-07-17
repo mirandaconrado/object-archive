@@ -86,31 +86,38 @@ class ObjectArchive {
     // Removes an object entry if it's present.
     void remove(std::size_t id);
 
-    // Stores an object and associates it with an id. Returns the total size
-    // stored, which is 0 if the object is larger than the buffer.
+    // Stores an object and associates it with an id and returns the total size
+    // stored.
+    // If the object is larger than the buffer's maximum size, it isn't
+    // kept in memory. The user can choose to not add the object to buffer,
+    // which is useful if it won't be used again.
     template <class T1, class T2>
-    std::size_t insert(T1 const& id, T2 const& obj) {
-      return insert(std::hash<T1>()(id), obj);
+    std::size_t insert(T1 const& id, T2 const& obj,
+        bool keep_in_buffer = true) {
+      return insert(std::hash<T1>()(id), obj, keep_in_buffer);
     }
 
     template <class T>
-    std::size_t insert(std::size_t const& id, T const& obj) {
+    std::size_t insert(std::size_t const& id, T const& obj,
+        bool keep_in_buffer = true) {
       std::stringstream stream;
       boost::archive::binary_oarchive ofs(stream);
       ofs << obj;
-      return internal_insert(id, stream.str());
+      return internal_insert(id, stream.str(), keep_in_buffer);
     }
 
     // Loads the object associated with the id and stores at val. Returns the
-    // total size of the object, which is 0 if the object is larger than the
-    // buffer or isn't found.
+    // total size of the object, which is 0 if the object isn't found.
+    // If the object is larger than the buffer's maximum size, it isn't
+    // kept in memory. The user can choose to not add the object to buffer,
+    // which is useful if it won't be used again.
     template <class T1, class T2>
-    std::size_t load(T1 const& id, T2& obj) {
-      return load(std::hash<T1>()(id), obj);
+    std::size_t load(T1 const& id, T2& obj, bool keep_in_buffer = true) {
+      return load(std::hash<T1>()(id), obj, keep_in_buffer);
     }
 
     template <class T>
-    std::size_t load(std::size_t const& id, T& obj) {
+    std::size_t load(std::size_t const& id, T& obj, bool keep_in_buffer = true) {
       std::string s;
       std::size_t ret = internal_load(id, s);
       if (ret == 0) return 0;
@@ -134,8 +141,10 @@ class ObjectArchive {
     void flush();
 
   private:
-    std::size_t internal_insert(std::size_t id, std::string const& data);
-    std::size_t internal_load(std::size_t id, std::string& data);
+    std::size_t internal_insert(std::size_t id, std::string const& data,
+        bool keep_in_buffer = true);
+    std::size_t internal_load(std::size_t id, std::string& data,
+        bool keep_in_buffer = true);
 
     // Writes a file back to disk, freeing its buffer space. Returns if the
     // object id is inside the buffer.

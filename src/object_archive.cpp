@@ -136,14 +136,14 @@ void ObjectArchive::remove(std::size_t id) {
 }
 
 std::size_t ObjectArchive::internal_insert(std::size_t id,
-    std::string const& data) {
+    std::string const& data, bool keep_in_buffer) {
   std::size_t size = data.size();
   if (size > max_buffer_size_)
-    return 0;
+    keep_in_buffer = false;
 
   remove(id);
 
-  if (size + buffer_size_ > max_buffer_size_)
+  if (size + buffer_size_ > max_buffer_size_ && keep_in_buffer)
     unload(max_buffer_size_ - size);
 
   buffer_size_ += size;
@@ -155,10 +155,14 @@ std::size_t ObjectArchive::internal_insert(std::size_t id,
   touch_LRU(id);
   must_rebuild_file_ = true;
 
+  if (!keep_in_buffer)
+    write_back(id);
+
   return size;
 }
 
-std::size_t ObjectArchive::internal_load(std::size_t id, std::string& data) {
+std::size_t ObjectArchive::internal_load(std::size_t id, std::string& data,
+    bool keep_in_buffer) {
   auto it = objects_.find(id);
   if (it == objects_.end())
     return 0;
@@ -167,7 +171,7 @@ std::size_t ObjectArchive::internal_load(std::size_t id, std::string& data) {
 
   std::size_t size = entry.size;
   if (size > max_buffer_size_)
-    return 0;
+    keep_in_buffer = false;
 
   // If the result isn't in the buffer, we must read it.
   if (entry.data.size() == 0) {
@@ -186,6 +190,10 @@ std::size_t ObjectArchive::internal_load(std::size_t id, std::string& data) {
   }
 
   data = entry.data;
+
+  if (!keep_in_buffer)
+    entry.data.clear();
+
   return size;
 }
 
