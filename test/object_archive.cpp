@@ -122,6 +122,51 @@ TEST_F(ObjectArchiveTest, InsertOverwrite) {
   EXPECT_EQ((1+1*3)*sizeof(std::size_t)+s1, fs.tellp());
 }
 
+TEST_F(ObjectArchiveTest, InsertOverwriteReopen) {
+  std::size_t s1;
+  {
+    ObjectArchive ar(filename.string(), 100);
+    std::size_t id;
+    std::string val;
+    id = 0; val = "1";
+    s1 = ar.insert(id, val);
+  }
+
+  {
+    std::fstream fs(filename.string(),
+        std::ios_base::in | std::ios_base::out | std::ios_base::binary);
+    fs.seekp(0, std::ios_base::end);
+    EXPECT_EQ((1+1*3)*sizeof(std::size_t)+s1, fs.tellp());
+  }
+
+  {
+    ObjectArchive ar(filename.string(), 100);
+    std::size_t id;
+    std::string val;
+    id = 0;
+    EXPECT_EQ(s1, ar.load(id, val));
+    EXPECT_EQ(std::string("1"), val);
+    val = "3";
+    s1 = ar.insert(id, val);
+  }
+
+  {
+    std::fstream fs(filename.string(),
+        std::ios_base::in | std::ios_base::out | std::ios_base::binary);
+    fs.seekp(0, std::ios_base::end);
+    EXPECT_EQ((1+1*3)*sizeof(std::size_t)+s1, fs.tellp());
+  }
+
+  {
+    ObjectArchive ar(filename.string(), 100);
+    std::size_t id;
+    std::string val;
+    id = 0;
+    EXPECT_EQ(s1, ar.load(id, val));
+    EXPECT_EQ(std::string("3"), val);
+  }
+}
+
 TEST_F(ObjectArchiveTest, InsertSmallBuffer) {
   std::size_t s1, s2;
   {
