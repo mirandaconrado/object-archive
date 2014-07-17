@@ -38,8 +38,8 @@ SOFTWARE.
 // will completely rebuild the file.
 //
 // Each object is referenced by an id, which by default is the hash of its key
-// unless it's an std::size_t. Hash collisions are NOT handled! The object must
-// be serializable through boost.
+// unless it's an size_t. Hash collisions are NOT handled! The object must be
+// serializable through boost.
 //
 // Note: the maximum buffer size provided isn't the maximum size that will
 // actually be used, as there is a minor overhead for bookkeeping.
@@ -69,7 +69,7 @@ class ObjectArchive {
     // Loads the archive at the given path and associates the maximum buffer
     // size. If the archive doesn't exist, create it. The minimum buffer size
     // allowed is 1 byte, which is forced if 0 is given.
-    ObjectArchive(std::string const& filename, std::size_t max_buffer_size);
+    ObjectArchive(std::string const& filename, size_t max_buffer_size);
 
     // Same as the other constructor, but the string holds the number of bytes
     // for the buffer, possibly with modifiers K, M or G. If more than one
@@ -84,7 +84,7 @@ class ObjectArchive {
     void init(std::string const& filename);
 
     // Removes an object entry if it's present.
-    void remove(std::size_t id);
+    void remove(size_t id);
 
     // Stores an object and associates it with an id and returns the total size
     // stored.
@@ -92,14 +92,13 @@ class ObjectArchive {
     // kept in memory. The user can choose to not add the object to buffer,
     // which is useful if it won't be used again.
     template <class T1, class T2>
-    std::size_t insert(T1 const& id, T2 const& obj,
+    size_t insert(T1 const& id, T2 const& obj,
         bool keep_in_buffer = true) {
       return insert(std::hash<T1>()(id), obj, keep_in_buffer);
     }
 
     template <class T>
-    std::size_t insert(std::size_t const& id, T const& obj,
-        bool keep_in_buffer = true) {
+    size_t insert(size_t const& id, T const& obj, bool keep_in_buffer = true) {
       std::stringstream stream;
       boost::archive::binary_oarchive ofs(stream);
       ofs << obj;
@@ -112,14 +111,14 @@ class ObjectArchive {
     // kept in memory. The user can choose to not add the object to buffer,
     // which is useful if it won't be used again.
     template <class T1, class T2>
-    std::size_t load(T1 const& id, T2& obj, bool keep_in_buffer = true) {
+    size_t load(T1 const& id, T2& obj, bool keep_in_buffer = true) {
       return load(std::hash<T1>()(id), obj, keep_in_buffer);
     }
 
     template <class T>
-    std::size_t load(std::size_t const& id, T& obj, bool keep_in_buffer = true) {
+    size_t load(size_t const& id, T& obj, bool keep_in_buffer = true) {
       std::string s;
-      std::size_t ret = internal_load(id, s, keep_in_buffer);
+      size_t ret = internal_load(id, s, keep_in_buffer);
       if (ret == 0) return 0;
       std::stringstream stream(s);
       boost::archive::binary_iarchive ifs(stream);
@@ -130,10 +129,10 @@ class ObjectArchive {
     // Saves the least recently used entries so that the buffer size is at most
     // the value given in the argument. By default, frees the full buffer. If
     // the argument is larger than the current buffer, does nothing.
-    void unload(std::size_t desired_size = 0);
+    void unload(size_t desired_size = 0);
 
     // Gets a list of all the results stored in this archive.
-    std::list<std::size_t> available_objects() const;
+    std::list<size_t> available_objects() const;
 
     // Flushs the archive, guaranteeing that the data is saved to a file, which
     // can be used later or continue to be used. The buffer is empty after this
@@ -141,36 +140,36 @@ class ObjectArchive {
     void flush();
 
   private:
-    std::size_t internal_insert(std::size_t id, std::string&& data,
+    size_t internal_insert(size_t id, std::string&& data,
         bool keep_in_buffer = true);
-    std::size_t internal_load(std::size_t id, std::string& data,
+    size_t internal_load(size_t id, std::string& data,
         bool keep_in_buffer = true);
 
     // Writes a file back to disk, freeing its buffer space. Returns if the
     // object id is inside the buffer.
-    bool write_back(std::size_t id);
+    bool write_back(size_t id);
 
     // Puts the id in the front of the list, saying it was the last one used.
-    void touch_LRU(std::size_t id);
+    void touch_LRU(size_t id);
 
     // Holds the entry for one object with all the information required to
     // manage it.
     struct ObjectEntry {
       std::string data; // Data for the object
-      std::size_t index_in_file; // Index for finding it inside a file
-      std::size_t size; // Total object size. data.size() == size if loaded
+      size_t index_in_file; // Index for finding it inside a file
+      size_t size; // Total object size. data.size() == size if loaded
       bool modified; // If modified, the file must be written back to disk
     };
-    std::map<std::size_t, ObjectEntry> objects_;
+    std::map<size_t, ObjectEntry> objects_;
 
-    std::list<std::size_t> LRU_; // Most recent elements are on the front
+    std::list<size_t> LRU_; // Most recent elements are on the front
 
     std::string filename_;
 
     // Inserting or removing files changes the header and it must be rebuilt
     bool must_rebuild_file_;
 
-    std::size_t max_buffer_size_, // Argument provided at creation
+    size_t max_buffer_size_, // Argument provided at creation
       buffer_size_, // Current buffer size
       header_offset_; // Offset to the file positions caused by the header
 
