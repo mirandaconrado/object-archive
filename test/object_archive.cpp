@@ -325,3 +325,25 @@ TEST_F(ObjectArchiveTest, DontKeepInBuffer) {
     EXPECT_EQ(std::string("3"), val);
   }
 }
+
+TEST_F(ObjectArchiveTest, Flush) {
+  std::size_t s1, s2;
+  {
+    ObjectArchive ar(filename.string(), 100);
+    std::size_t id;
+    std::string val;
+    id = 0; val = "1";
+    s1 = ar.insert(id, val);
+    id = 2; val = "3";
+    s2 = ar.insert(id, val);
+
+    ar.flush();
+
+    id = 0;
+    EXPECT_EQ(s1, ar.load(id, val));
+    EXPECT_EQ(std::string("1"), val);
+    id = 2;
+    EXPECT_EQ(s2, ar.load(id, val));
+    EXPECT_EQ(std::string("3"), val);
+  }
+}
