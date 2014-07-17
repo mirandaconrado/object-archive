@@ -137,24 +137,25 @@ class ObjectArchive {
     void flush();
 
   private:
-    std::size_t internal_insert(std::size_t id, std::string const& val);
-    std::size_t internal_load(std::size_t id, std::string& val);
+    std::size_t internal_insert(std::size_t id, std::string const& data);
+    std::size_t internal_load(std::size_t id, std::string& data);
 
     // Writes a file back to disk, freeing its buffer space. Returns if the
     // object id is inside the buffer.
     bool write_back(std::size_t id);
 
+    // Puts the id in the front of the list, saying it was the last one used.
     void touch_LRU(std::size_t id);
 
     // Holds the entry for one object with all the information required to
     // manage it.
-    struct ObjectMetadata {
-      std::string value;
+    struct ObjectEntry {
+      std::string data;
       std::size_t index_in_file;
       std::size_t size;
       bool modified;
     };
-    std::map<std::size_t, ObjectMetadata> objects_;
+    std::map<std::size_t, ObjectEntry> objects_;
 
     std::string filename_;
     bool must_rebuild_file_;

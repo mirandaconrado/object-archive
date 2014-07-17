@@ -107,11 +107,11 @@ void ObjectArchive::init(std::string const& filename) {
       stream_.read((char*)&pos, sizeof(std::size_t));
       stream_.read((char*)&size, sizeof(std::size_t));
 
-      ObjectMetadata metadata;
-      metadata.index_in_file = pos;
-      metadata.size = size;
-      metadata.modified = false;
-      objects_[id] = metadata;
+      ObjectEntry entry;
+      entry.index_in_file = pos;
+      entry.size = size;
+      entry.modified = false;
+      objects_[id] = entry;
     }
 
     header_offset_ = stream_.tellg();
@@ -127,17 +127,17 @@ void ObjectArchive::remove(std::size_t id) {
   if (it == objects_.end())
     return;
 
-  ObjectMetadata& metadata = it->second;
-  if (metadata.value.size())
-    buffer_size_ -= metadata.size;
+  ObjectEntry& entry = it->second;
+  if (entry.data.size())
+    buffer_size_ -= entry.size;
   objects_.erase(id);
   LRU_.remove(id);
   must_rebuild_file_ = true;
 }
 
 std::size_t ObjectArchive::internal_insert(std::size_t id,
-    std::string const& val) {
-  std::size_t size = val.size();
+    std::string const& data) {
+  std::size_t size = data.size();
   if (size > max_buffer_size_)
     return 0;
 
@@ -148,44 +148,44 @@ std::size_t ObjectArchive::internal_insert(std::size_t id,
 
   buffer_size_ += size;
 
-  ObjectMetadata& metadata = objects_[id];
-  metadata.value = val;
-  metadata.size = size;
-  metadata.modified = true;
+  ObjectEntry& entry = objects_[id];
+  entry.data = data;
+  entry.size = size;
+  entry.modified = true;
   touch_LRU(id);
   must_rebuild_file_ = true;
 
   return size;
 }
 
-std::size_t ObjectArchive::internal_load(std::size_t id, std::string& val) {
+std::size_t ObjectArchive::internal_load(std::size_t id, std::string& data) {
   auto it = objects_.find(id);
   if (it == objects_.end())
     return 0;
 
-  ObjectMetadata& metadata = it->second;
+  ObjectEntry& entry = it->second;
 
-  std::size_t size = metadata.size;
+  std::size_t size = entry.size;
   if (size > max_buffer_size_)
     return 0;
 
   // If the result isn't in the buffer, we must read it.
-  if (metadata.value.size() == 0) {
+  if (entry.data.size() == 0) {
     // Only check for size if we have to load.
     if (size + buffer_size_ > max_buffer_size_)
       unload(max_buffer_size_ - size);
 
-    stream_.seekg(metadata.index_in_file + header_offset_);
-    std::string& buf = metadata.value;
+    stream_.seekg(entry.index_in_file + header_offset_);
+    std::string& buf = entry.data;
     buf.resize(size);
     stream_.read(&buf[0], size);
     buffer_size_ += size;
 
-    metadata.modified = false;
+    entry.modified = false;
     touch_LRU(id);
   }
 
-  val = metadata.value;
+  data = entry.data;
   return size;
 }
 
@@ -223,9 +223,9 @@ void ObjectArchive::flush() {
   std::size_t pos = 0;
   for (auto& it : objects_) {
     size_t id, size;
-    ObjectMetadata& metadata = it.second;
+    ObjectEntry& entry = it.second;
     id = it.first;
-    size = metadata.size;
+    size = entry.size;
     temp_stream.write((char*)&id, sizeof(size_t));
     temp_stream.write((char*)&pos, sizeof(size_t));
     temp_stream.write((char*)&size, sizeof(size_t));
@@ -236,11 +236,11 @@ void ObjectArchive::flush() {
 
   pos = 0;
   for (auto& it : objects_) {
-    ObjectMetadata& metadata = it.second;
-    stream_.seekg(metadata.index_in_file + header_offset_);
-    std::size_t size = metadata.size;
+    ObjectEntry& entry = it.second;
+    stream_.seekg(entry.index_in_file + header_offset_);
+    std::size_t size = entry.size;
 
-    metadata.index_in_file = pos;
+    entry.index_in_file = pos;
     pos += size;
 
     // Only uses the allowed buffer memory.
@@ -268,17 +268,17 @@ bool ObjectArchive::write_back(std::size_t id) {
   if (it == objects_.end())
     return false;
 
-  ObjectMetadata& metadata = it->second;
+  ObjectEntry& entry = it->second;
 
-  if (metadata.modified) {
-    metadata.index_in_file = stream_.tellp();
-    metadata.index_in_file -= header_offset_;
-    stream_.write((char*)&metadata.value[0], metadata.size);
-    metadata.modified = false;
+  if (entry.modified) {
+    entry.index_in_file = stream_.tellp();
+    entry.index_in_file -= header_offset_;
+    stream_.write((char*)&entry.data[0], entry.size);
+    entry.modified = false;
   }
 
-  metadata.value.clear();
-  buffer_size_ -= metadata.size;
+  entry.data.clear();
+  buffer_size_ -= entry.size;
   LRU_.remove(id);
   must_rebuild_file_ = true;
 
