@@ -90,6 +90,10 @@ void ObjectArchive::init(std::string const& filename) {
 
   filename_ = filename;
 
+  buffer_size_ = 0;
+  objects_.clear();
+  LRU_.clear();
+
   stream_.open(filename, std::ios_base::in | std::ios_base::out |
                          std::ios_base::binary);
   stream_.seekg(0, std::ios_base::end);
@@ -119,6 +123,7 @@ void ObjectArchive::init(std::string const& filename) {
   else {
     stream_.open(filename, std::ios_base::in | std::ios_base::out |
         std::ios_base::binary | std::ios_base::trunc);
+    header_offset_ = 0;
   }
 }
 
@@ -228,6 +233,7 @@ void ObjectArchive::flush() {
 
   std::size_t n_entries = objects_.size();
   temp_stream.write((char*)&n_entries, sizeof(size_t));
+
   std::size_t pos = 0;
   for (auto& it : objects_) {
     size_t id, size;
@@ -242,14 +248,10 @@ void ObjectArchive::flush() {
 
   char* temp_buffer = new char[max_buffer_size_];
 
-  pos = 0;
   for (auto& it : objects_) {
     ObjectEntry& entry = it.second;
     stream_.seekg(entry.index_in_file + header_offset_);
     std::size_t size = entry.size;
-
-    entry.index_in_file = pos;
-    pos += size;
 
     // Only uses the allowed buffer memory.
     for (;
@@ -269,6 +271,8 @@ void ObjectArchive::flush() {
 
   boost::filesystem::remove(filename_);
   boost::filesystem::rename(temp_filename, filename_);
+
+  init(filename_);
 }
 
 bool ObjectArchive::write_back(std::size_t id) {
