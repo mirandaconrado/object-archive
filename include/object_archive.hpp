@@ -141,7 +141,7 @@ class ObjectArchive {
     void flush();
 
   private:
-    std::size_t internal_insert(std::size_t id, std::string const& data,
+    std::size_t internal_insert(std::size_t id, std::string&& data,
         bool keep_in_buffer = true);
     std::size_t internal_load(std::size_t id, std::string& data,
         bool keep_in_buffer = true);

@@ -141,7 +141,7 @@ void ObjectArchive::remove(std::size_t id) {
 }
 
 std::size_t ObjectArchive::internal_insert(std::size_t id,
-    std::string const& data, bool keep_in_buffer) {
+    std::string&& data, bool keep_in_buffer) {
   std::size_t size = data.size();
   if (size > max_buffer_size_)
     keep_in_buffer = false;
@@ -154,7 +154,7 @@ std::size_t ObjectArchive::internal_insert(std::size_t id,
   buffer_size_ += size;
 
   ObjectEntry& entry = objects_[id];
-  entry.data = data;
+  entry.data.swap(data);
   entry.size = size;
   entry.modified = true;
   touch_LRU(id);
@@ -194,10 +194,12 @@ std::size_t ObjectArchive::internal_load(std::size_t id, std::string& data,
     touch_LRU(id);
   }
 
-  data = entry.data;
-
-  if (!keep_in_buffer)
+  if (!keep_in_buffer) {
+    data.swap(entry.data);
     entry.data.clear();
+  }
+  else
+    data = entry.data;
 
   return size;
 }
