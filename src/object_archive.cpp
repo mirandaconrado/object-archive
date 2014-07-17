@@ -39,38 +39,10 @@ SOFTWARE.
 
 ObjectArchive::ObjectArchive(std::string const& filename,
     std::size_t max_buffer_size):
-  filename_(filename),
-  modified_(false),
   must_rebuild_file_(false),
   max_buffer_size_(max_buffer_size),
-  buffer_size_(0),
-  header_offset_(0),
-  stream_(filename, std::ios_base::in | std::ios_base::out |
-                    std::ios_base::binary) {
-    stream_.seekg(0, std::ios_base::end);
-
-    // If the file seems ok and has entries, use it. Otherwise, overwrite.
-    if (stream_.good() && stream_.tellg() > 0) {
-      stream_.seekg(0);
-
-      std::size_t n_entries;
-      stream_.read((char*)&n_entries, sizeof(std::size_t));
-
-      for (std::size_t i = 0; i < n_entries; i++) {
-        std::size_t id, pos, size;
-        stream_.read((char*)&id, sizeof(std::size_t));
-        stream_.read((char*)&pos, sizeof(std::size_t));
-        stream_.read((char*)&size, sizeof(std::size_t));
-        index_file_[id] = pos;
-        sizes_[id] = size;
-      }
-
-      header_offset_ = stream_.tellg();
-    }
-    else {
-      stream_.open(filename, std::ios_base::in | std::ios_base::out |
-                             std::ios_base::binary | std::ios_base::trunc);
-    }
+  buffer_size_(0) {
+    init(filename);
 
     if (max_buffer_size_ < 1)
       max_buffer_size_ = 1;
@@ -110,101 +82,133 @@ ObjectArchive::ObjectArchive(std::string const& filename,
 }
 
 ObjectArchive::~ObjectArchive() {
-  defrag();
+  flush();
+}
+
+void ObjectArchive::init(std::string const& filename) {
+  flush();
+
+  filename_ = filename;
+
+  stream_.open(filename, std::ios_base::in | std::ios_base::out |
+                         std::ios_base::binary);
+  stream_.seekg(0, std::ios_base::end);
+
+  // If the file seems ok and has entries, use it. Otherwise, overwrite.
+  if (stream_.good() && stream_.tellg() > 0) {
+    stream_.seekg(0);
+
+    std::size_t n_entries;
+    stream_.read((char*)&n_entries, sizeof(std::size_t));
+
+    for (std::size_t i = 0; i < n_entries; i++) {
+      std::size_t id, pos, size;
+      stream_.read((char*)&id, sizeof(std::size_t));
+      stream_.read((char*)&pos, sizeof(std::size_t));
+      stream_.read((char*)&size, sizeof(std::size_t));
+
+      ObjectEntry entry;
+      entry.index_in_file = pos;
+      entry.size = size;
+      entry.modified = false;
+      objects_[id] = entry;
+    }
+
+    header_offset_ = stream_.tellg();
+  }
+  else {
+    stream_.open(filename, std::ios_base::in | std::ios_base::out |
+        std::ios_base::binary | std::ios_base::trunc);
+  }
 }
 
 void ObjectArchive::remove(std::size_t id) {
-  auto it = sizes_.find(id);
-  if (it == sizes_.end())
+  auto it = objects_.find(id);
+  if (it == objects_.end())
     return;
 
-  if (buffer_.find(id) != buffer_.end())
-    buffer_size_ -= it->second;
-  index_file_.erase(id);
-  sizes_.erase(id);
-  buffer_.erase(id);
-  modified_ = true;
+  ObjectEntry& entry = it->second;
+  if (entry.data.size())
+    buffer_size_ -= entry.size;
+  objects_.erase(id);
+  LRU_.remove(id);
+  must_rebuild_file_ = true;
 }
 
 std::size_t ObjectArchive::internal_insert(std::size_t id,
-    std::string const& val) {
-  std::size_t size = val.size();
+    std::string const& data) {
+  std::size_t size = data.size();
   if (size > max_buffer_size_)
     return 0;
 
+  remove(id);
+
   if (size + buffer_size_ > max_buffer_size_)
-    unload();
+    unload(max_buffer_size_ - size);
 
   buffer_size_ += size;
-  index_file_.erase(id); // The value inside the file isn't valid anymore
-  sizes_[id] = size;
-  buffer_[id] = val;
-  modified_ = true;
+
+  ObjectEntry& entry = objects_[id];
+  entry.data = data;
+  entry.size = size;
+  entry.modified = true;
+  touch_LRU(id);
+  must_rebuild_file_ = true;
 
   return size;
 }
 
-std::size_t ObjectArchive::internal_load(std::size_t id, std::string& val) {
-  auto it = sizes_.find(id);
-  if (it == sizes_.end())
+std::size_t ObjectArchive::internal_load(std::size_t id, std::string& data) {
+  auto it = objects_.find(id);
+  if (it == objects_.end())
     return 0;
 
-  std::size_t size = it->second;
+  ObjectEntry& entry = it->second;
+
+  std::size_t size = entry.size;
   if (size > max_buffer_size_)
     return 0;
 
   // If the result isn't in the buffer, we must read it.
-  if (buffer_.find(id) == buffer_.end()) {
+  if (entry.data.size() == 0) {
     // Only check for size if we have to load.
     if (size + buffer_size_ > max_buffer_size_)
-      unload();
+      unload(max_buffer_size_ - size);
 
-    stream_.seekg(index_file_.at(id)+header_offset_);
-    std::string& buf = buffer_[id];
+    stream_.seekg(entry.index_in_file + header_offset_);
+    std::string& buf = entry.data;
     buf.resize(size);
     stream_.read(&buf[0], size);
+    buffer_size_ += size;
+
+    entry.modified = false;
+    touch_LRU(id);
   }
 
-  val = buffer_[id];
+  data = entry.data;
   return size;
 }
 
-void ObjectArchive::unload() {
-  if (modified_) {
-    stream_.seekp(0, std::ios_base::end);
-    for (auto& it : buffer_) {
-      std::size_t id = it.first;
-      // If the object isn't valid inside the file, write it to the end.
-      if (index_file_.find(id) == index_file_.end()) {
-        index_file_[id] = stream_.tellp();
-        index_file_[id] -= header_offset_;
-        stream_.write((char*)&it.second[0], sizes_[id]);
-      }
-    }
-    modified_ = false;
-    must_rebuild_file_ = true;
-  }
-
-  buffer_.clear();
-  buffer_size_ = 0;
+void ObjectArchive::unload(std::size_t desired_size) {
+  while (buffer_size_ > desired_size)
+    write_back(LRU_.back());
 }
 
-std::set<std::size_t> ObjectArchive::available_objects() const {
-  std::set<std::size_t> set;
-  for (auto& it : index_file_)
-    set.insert(it.first);
+std::list<std::size_t> ObjectArchive::available_objects() const {
+  std::list<std::size_t> list;
+  for (auto& it : objects_)
+    list.push_front(it.first);
 
-  for (auto& it : buffer_)
-    set.insert(it.first);
-
-  return set;
+  return list;
 }
 
-void ObjectArchive::defrag() {
+void ObjectArchive::flush() {
   unload();
 
   if (!must_rebuild_file_)
     return;
+
+  must_rebuild_file_ = false;
 
   boost::filesystem::path temp_filename;
   temp_filename = boost::filesystem::temp_directory_path();
@@ -214,13 +218,14 @@ void ObjectArchive::defrag() {
       std::ios_base::in | std::ios_base::out |
       std::ios_base::binary | std::ios_base::trunc);
 
-  std::size_t n_entries = index_file_.size();
+  std::size_t n_entries = objects_.size();
   temp_stream.write((char*)&n_entries, sizeof(size_t));
   std::size_t pos = 0;
-  for (auto& it : index_file_) {
+  for (auto& it : objects_) {
     size_t id, size;
+    ObjectEntry& entry = it.second;
     id = it.first;
-    size = sizes_[id];
+    size = entry.size;
     temp_stream.write((char*)&id, sizeof(size_t));
     temp_stream.write((char*)&pos, sizeof(size_t));
     temp_stream.write((char*)&size, sizeof(size_t));
@@ -229,12 +234,17 @@ void ObjectArchive::defrag() {
 
   char* temp_buffer = new char[max_buffer_size_];
 
-  for (auto& it : index_file_) {
-    std::size_t id = it.first;
-    stream_.seekg(it.second+header_offset_);
-    std::size_t size = sizes_.at(id);
+  pos = 0;
+  for (auto& it : objects_) {
+    ObjectEntry& entry = it.second;
+    stream_.seekg(entry.index_in_file + header_offset_);
+    std::size_t size = entry.size;
+
+    entry.index_in_file = pos;
+    pos += size;
+
     // Only uses the allowed buffer memory.
-    for (size = sizes_.at(id);
+    for (;
          size > max_buffer_size_;
          size -= max_buffer_size_) {
       stream_.read(temp_buffer, max_buffer_size_);
@@ -251,7 +261,31 @@ void ObjectArchive::defrag() {
 
   boost::filesystem::remove(filename_);
   boost::filesystem::rename(temp_filename, filename_);
+}
 
-  stream_.open(filename_, std::ios_base::in | std::ios_base::out |
-                          std::ios_base::binary);
+bool ObjectArchive::write_back(std::size_t id) {
+  auto it = objects_.find(id);
+  if (it == objects_.end())
+    return false;
+
+  ObjectEntry& entry = it->second;
+
+  if (entry.modified) {
+    entry.index_in_file = stream_.tellp();
+    entry.index_in_file -= header_offset_;
+    stream_.write((char*)&entry.data[0], entry.size);
+    entry.modified = false;
+  }
+
+  entry.data.clear();
+  buffer_size_ -= entry.size;
+  LRU_.remove(id);
+  must_rebuild_file_ = true;
+
+  return true;
+}
+
+void ObjectArchive::touch_LRU(std::size_t id) {
+  LRU_.remove(id);
+  LRU_.push_front(id);
 }

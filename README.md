@@ -13,26 +13,21 @@ handles the object positioning for the user. Moreover, a buffer with user-chosen
 size is provided to allow further flexibility.
 
 Each object stored must be serializable through boost and the identifier must be
-hashable. No hash collision prevention is provided! To free the buffer, a method
-`unload()` is provided and, to ensure the objects are written to disk, a method
-`defrag()` may be used. Destruction if an ObjectArchive automatically ensures
-the files are stored in disk.
+hashable. No hash collision prevention is provided! To free part of the buffer,
+the method `unload()` is provided and, to ensure the objects are written to
+disk, the method `defrag()` may be used. Destruction if an ObjectArchive
+automatically ensures the files are stored in disk.
 
-Current drawbacks are:
-
-1. if an object is larger than the buffer size, it can't be stored or loaded.
-This is easy to change, but protects against size bugs;
-2. when the buffer needs space, it clears itself. A better approach would be to
-use LRU policy, but it's much more complicated (somewhat fine timing is
-required) and the OS tends to buffer part of the file, so it may be only a
-memory copy.
+Current drawback: if an object is larger than the buffer size, it can't be
+stored or loaded. This is easy to change, but protects against size bugs.
 
 Example of use:
 ```
 ObjectArchive ar("path/to/file", "1.5G");
 ar.insert("filename", filedata);
-...
+[do some stuff]
 ar.load("filename", filedata);
-...
+[filedata has the previous value again]
 ar.remove("filename");
+[filedata keeps its value]
 ```

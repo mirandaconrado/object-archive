@@ -25,17 +25,16 @@ SOFTWARE.
 // This file defines a class to store many objects into a file, but a buffer is
 // provided for speed.
 //
-// The object are read from file as needed and, when the buffer is full, it's
-// cleared. Although LRU policy would be prefered, it's much more complicated
-// and the OS tends to buffer part of the file.
+// The object are read from file as needed and, when the buffer is full, they
+// are removed in a LRU fashion.
 //
-// New objects are stored in the buffer until the archive is unloaded, when they
-// are saved into its file. When the archive is destroyed, its file is updated
-// to take into account the modifications during use (removes and inserts).
-// Hence, if a crash that doesn't destroy the archive occurs, the objects aren't
-// saved even if the user called the method unload()!
+// New objects are stored in the buffer until the archive is flushed, when they
+// are saved into its file and the buffer cleared, or when some buffer slots are
+// freed. When the archive is destroyed, its file is updated to take into
+// account the modifications during use (removes and inserts). Hence, if a crash
+// that doesn't destroy the archive occurs, the objects aren't saved!
 //
-// To make sure that the objects are written, the user can call defrag(), which
+// To make sure that the objects are written, the user can call flush(), which
 // will completely rebuild the file.
 //
 // Each object is referenced by an id, which by default is the hash of its key
@@ -48,10 +47,11 @@ SOFTWARE.
 // Example:
 // ObjectArchive ar("path/to/file", "1.5G");
 // ar.insert("filename", filedata);
-// ...
+// [do some stuff]
 // ar.load("filename", filedata);
-// ...
+// [filedata has the previous value again]
 // ar.remove("filename");
+// [filedata keeps its value]
 
 #ifndef __OBJECT_ARCHIVE_HPP__
 #define __OBJECT_ARCHIVE_HPP__
@@ -62,7 +62,6 @@ SOFTWARE.
 #include <functional>
 #include <list>
 #include <map>
-#include <set>
 #include <sstream>
 
 class ObjectArchive {
@@ -78,17 +77,17 @@ class ObjectArchive {
     ObjectArchive(std::string const& filename,
         std::string const& max_buffer_size);
 
-    // Unloads the buffer, saving it to file, and defragments the file, as some
-    // object may have been removed.
+    // Unloads the buffer using method flush().
     ~ObjectArchive();
+
+    // Initializes the archive using a new file as backend.
+    void init(std::string const& filename);
 
     // Removes an object entry if it's present.
     void remove(std::size_t id);
 
     // Stores an object and associates it with an id. Returns the total size
-    // stored, which is 0 if the object is larger than the buffer. If the buffer
-    // isn't able to fit the argument in its free space, the archive is
-    // unloaded.
+    // stored, which is 0 if the object is larger than the buffer.
     template <class T1, class T2>
     std::size_t insert(T1 const& id, T2 const& obj) {
       return insert(std::hash<T1>()(id), obj);
@@ -104,8 +103,7 @@ class ObjectArchive {
 
     // Loads the object associated with the id and stores at val. Returns the
     // total size of the object, which is 0 if the object is larger than the
-    // buffer or isn't found. If the buffer isn't able to fit the object in its
-    // free space, the archive is unloaded.
+    // buffer or isn't found.
     template <class T1, class T2>
     std::size_t load(T1 const& id, T2& obj) {
       return load(std::hash<T1>()(id), obj);
@@ -122,32 +120,52 @@ class ObjectArchive {
       return ret;
     }
 
-    // Saves all entries into the file and frees the buffer.
-    void unload();
+    // Saves the least recently used entries so that the buffer size is at most
+    // the value given in the argument. By default, frees the full buffer. If
+    // the argument is larger than the current buffer, does nothing.
+    void unload(std::size_t desired_size = 0);
 
     // Gets a list of all the results stored in this archive.
-    std::set<std::size_t> available_objects() const;
+    std::list<std::size_t> available_objects() const;
 
-    // If results were added or removed, defragments the file and writes the new
-    // header. This ensures that all objects are saved and the program can
-    // crash. Automatically call unload().
-    void defrag();
+    // Flushs the archive, guaranteeing that the data is saved to a file, which
+    // can be used later or continue to be used. The buffer is empty after this
+    // method, but the archive can still be used.
+    void flush();
 
   private:
-    std::size_t internal_insert(std::size_t id, std::string const& val);
-    std::size_t internal_load(std::size_t id, std::string& val);
+    std::size_t internal_insert(std::size_t id, std::string const& data);
+    std::size_t internal_load(std::size_t id, std::string& data);
+
+    // Writes a file back to disk, freeing its buffer space. Returns if the
+    // object id is inside the buffer.
+    bool write_back(std::size_t id);
+
+    // Puts the id in the front of the list, saying it was the last one used.
+    void touch_LRU(std::size_t id);
+
+    // Holds the entry for one object with all the information required to
+    // manage it.
+    struct ObjectEntry {
+      std::string data; // Data for the object
+      std::size_t index_in_file; // Index for finding it inside a file
+      std::size_t size; // Total object size. data.size() == size if loaded
+      bool modified; // If modified, the file must be written back to disk
+    };
+    std::map<std::size_t, ObjectEntry> objects_;
+
+    std::list<std::size_t> LRU_; // Most recent elements are on the front
 
     std::string filename_;
-    bool modified_, must_rebuild_file_;
-    std::map<std::size_t,std::size_t>
-      index_file_, // Index of the objects in the file
-      sizes_; // Size of each object entry
+
+    // Inserting or removing files changes the header and it must be rebuilt
+    bool must_rebuild_file_;
+
     std::size_t max_buffer_size_, // Argument provided at creation
       buffer_size_, // Current buffer size
       header_offset_; // Offset to the file positions caused by the header
 
     std::fstream stream_;
-    std::map<std::size_t, std::string> buffer_;
 };
 
 #endif
