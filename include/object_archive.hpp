@@ -62,7 +62,6 @@ SOFTWARE.
 #include <functional>
 #include <list>
 #include <map>
-#include <set>
 #include <sstream>
 
 class ObjectArchive {
@@ -81,6 +80,8 @@ class ObjectArchive {
     // Unloads the buffer, saving it to file, and defragments the file, as some
     // object may have been removed.
     ~ObjectArchive();
+
+    void init(std::string const& filename);
 
     // Removes an object entry if it's present.
     void remove(std::size_t id);
@@ -122,32 +123,49 @@ class ObjectArchive {
       return ret;
     }
 
-    // Saves all entries into the file and frees the buffer.
-    void unload();
+    // Saves the least recently used entries so that the buffer size is at most
+    // the value given in the argument. By default, frees the full buffer. If
+    // the argument is larger than the current buffer, does nothing.
+    void unload(std::size_t desired_size = 0);
 
     // Gets a list of all the results stored in this archive.
-    std::set<std::size_t> available_objects() const;
+    std::list<std::size_t> available_objects() const;
 
     // If results were added or removed, defragments the file and writes the new
     // header. This ensures that all objects are saved and the program can
     // crash. Automatically call unload().
-    void defrag();
+    void flush();
 
   private:
     std::size_t internal_insert(std::size_t id, std::string const& val);
     std::size_t internal_load(std::size_t id, std::string& val);
 
+    // Writes a file back to disk, freeing its buffer space. Returns if the
+    // object id is inside the buffer.
+    bool write_back(std::size_t id);
+
+    void touch_LRU(std::size_t id);
+
+    // Holds the entry for one object with all the information required to
+    // manage it.
+    struct ObjectMetadata {
+      std::string value;
+      std::size_t index_in_file;
+      std::size_t size;
+      bool modified;
+    };
+    std::map<std::size_t, ObjectMetadata> objects_;
+
     std::string filename_;
-    bool modified_, must_rebuild_file_;
-    std::map<std::size_t,std::size_t>
-      index_file_, // Index of the objects in the file
-      sizes_; // Size of each object entry
+    bool must_rebuild_file_;
+
     std::size_t max_buffer_size_, // Argument provided at creation
       buffer_size_, // Current buffer size
       header_offset_; // Offset to the file positions caused by the header
 
     std::fstream stream_;
-    std::map<std::size_t, std::string> buffer_;
+
+    std::list<std::size_t> LRU_; // Most recent elements are on the front
 };
 
 #endif
