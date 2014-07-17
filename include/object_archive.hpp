@@ -77,19 +77,17 @@ class ObjectArchive {
     ObjectArchive(std::string const& filename,
         std::string const& max_buffer_size);
 
-    // Unloads the buffer, saving it to file, and defragments the file, as some
-    // object may have been removed.
+    // Unloads the buffer using method flush().
     ~ObjectArchive();
 
+    // Initializes the archive using a new file as backend.
     void init(std::string const& filename);
 
     // Removes an object entry if it's present.
     void remove(std::size_t id);
 
     // Stores an object and associates it with an id. Returns the total size
-    // stored, which is 0 if the object is larger than the buffer. If the buffer
-    // isn't able to fit the argument in its free space, the archive is
-    // unloaded.
+    // stored, which is 0 if the object is larger than the buffer.
     template <class T1, class T2>
     std::size_t insert(T1 const& id, T2 const& obj) {
       return insert(std::hash<T1>()(id), obj);
@@ -105,8 +103,7 @@ class ObjectArchive {
 
     // Loads the object associated with the id and stores at val. Returns the
     // total size of the object, which is 0 if the object is larger than the
-    // buffer or isn't found. If the buffer isn't able to fit the object in its
-    // free space, the archive is unloaded.
+    // buffer or isn't found.
     template <class T1, class T2>
     std::size_t load(T1 const& id, T2& obj) {
       return load(std::hash<T1>()(id), obj);
@@ -131,9 +128,9 @@ class ObjectArchive {
     // Gets a list of all the results stored in this archive.
     std::list<std::size_t> available_objects() const;
 
-    // If results were added or removed, defragments the file and writes the new
-    // header. This ensures that all objects are saved and the program can
-    // crash. Automatically call unload().
+    // Flushs the archive, guaranteeing that the data is saved to a file, which
+    // can be used later or continue to be used. The buffer is empty after this
+    // method, but the archive can still be used.
     void flush();
 
   private:
@@ -150,14 +147,18 @@ class ObjectArchive {
     // Holds the entry for one object with all the information required to
     // manage it.
     struct ObjectEntry {
-      std::string data;
-      std::size_t index_in_file;
-      std::size_t size;
-      bool modified;
+      std::string data; // Data for the object
+      std::size_t index_in_file; // Index for finding it inside a file
+      std::size_t size; // Total object size. data.size() == size if loaded
+      bool modified; // If modified, the file must be written back to disk
     };
     std::map<std::size_t, ObjectEntry> objects_;
 
+    std::list<std::size_t> LRU_; // Most recent elements are on the front
+
     std::string filename_;
+
+    // Inserting or removing files changes the header and it must be rebuilt
     bool must_rebuild_file_;
 
     std::size_t max_buffer_size_, // Argument provided at creation
@@ -165,8 +166,6 @@ class ObjectArchive {
       header_offset_; // Offset to the file positions caused by the header
 
     std::fstream stream_;
-
-    std::list<std::size_t> LRU_; // Most recent elements are on the front
 };
 
 #endif
