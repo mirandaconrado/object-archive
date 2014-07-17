@@ -119,7 +119,7 @@ class ObjectArchive {
     template <class T>
     std::size_t load(std::size_t const& id, T& obj, bool keep_in_buffer = true) {
       std::string s;
-      std::size_t ret = internal_load(id, s);
+      std::size_t ret = internal_load(id, s, keep_in_buffer);
       if (ret == 0) return 0;
       std::stringstream stream(s);
       boost::archive::binary_iarchive ifs(stream);
