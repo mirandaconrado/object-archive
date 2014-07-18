@@ -22,15 +22,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-// Each batch has a header with the following format:
+// Each archive has a header with the following format:
 // 1) Number of entries;
 // 2) For each entry, the following values:
-// 2.1) The hash of the task which provided the result;
-// 2.2) The position of the result inside the file;
-// 2.3) The size of the result.
+// 2.1) The id of the object;
+// 2.2) The position of the object inside the file;
+// 2.3) The size of the object.
 //
 // Each entry is of type size_t and the header isn't taken into account for the
-// maximum file size or entry position.
+// object position.
 
 #include "object_archive.hpp"
 
