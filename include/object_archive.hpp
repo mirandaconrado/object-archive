@@ -102,8 +102,15 @@ class ObjectArchive {
       std::stringstream stream;
       boost::archive::binary_oarchive ofs(stream);
       ofs << obj;
-      return internal_insert(id, stream.str(), keep_in_buffer);
+      return insert_raw(id, stream.str(), keep_in_buffer);
     }
+
+    // Stores an object that has already been serialized.
+    // If the object is larger than the buffer's maximum size, it isn't
+    // kept in memory. The user can choose to not add the object to buffer,
+    // which is useful if it won't be used again.
+    size_t insert_raw(size_t id, std::string&& data,
+        bool keep_in_buffer = true);
 
     // Loads the object associated with the id and stores at val. Returns the
     // total size of the object, which is 0 if the object isn't found.
@@ -118,13 +125,19 @@ class ObjectArchive {
     template <class T>
     size_t load(size_t const& id, T& obj, bool keep_in_buffer = true) {
       std::string s;
-      size_t ret = internal_load(id, s, keep_in_buffer);
+      size_t ret = load_raw(id, s, keep_in_buffer);
       if (ret == 0) return 0;
       std::stringstream stream(s);
       boost::archive::binary_iarchive ifs(stream);
       ifs >> obj;
       return ret;
     }
+
+    // Loads the raw serialized data of an object.
+    // If the object is larger than the buffer's maximum size, it isn't
+    // kept in memory. The user can choose to not add the object to buffer,
+    // which is useful if it won't be used again.
+    size_t load_raw(size_t id, std::string& data, bool keep_in_buffer = true);
 
     // Saves the least recently used entries so that the buffer size is at most
     // the value given in the argument. By default, frees the full buffer. If
@@ -140,11 +153,6 @@ class ObjectArchive {
     void flush();
 
   private:
-    size_t internal_insert(size_t id, std::string&& data,
-        bool keep_in_buffer = true);
-    size_t internal_load(size_t id, std::string& data,
-        bool keep_in_buffer = true);
-
     // Writes a file back to disk, freeing its buffer space. Returns if the
     // object id is inside the buffer.
     bool write_back(size_t id);

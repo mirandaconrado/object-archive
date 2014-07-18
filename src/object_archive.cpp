@@ -140,8 +140,8 @@ void ObjectArchive::remove(size_t id) {
   must_rebuild_file_ = true;
 }
 
-size_t ObjectArchive::internal_insert(size_t id,
-    std::string&& data, bool keep_in_buffer) {
+size_t ObjectArchive::insert_raw(size_t id, std::string&& data,
+    bool keep_in_buffer) {
   size_t size = data.size();
   if (size > max_buffer_size_)
     keep_in_buffer = false;
@@ -166,7 +166,7 @@ size_t ObjectArchive::internal_insert(size_t id,
   return size;
 }
 
-size_t ObjectArchive::internal_load(size_t id, std::string& data,
+size_t ObjectArchive::load_raw(size_t id, std::string& data,
     bool keep_in_buffer) {
   auto it = objects_.find(id);
   if (it == objects_.end())
