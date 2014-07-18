@@ -190,8 +190,9 @@ size_t ObjectArchive::load_raw(size_t id, std::string& data,
     buffer_size_ += size;
 
     entry.modified = false;
-    touch_LRU(id);
   }
+
+  touch_LRU(id);
 
   if (!keep_in_buffer) {
     data.swap(entry.data);
