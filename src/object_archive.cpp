@@ -158,7 +158,6 @@ size_t ObjectArchive::insert_raw(size_t id, std::string&& data,
   entry.size = size;
   entry.modified = true;
   touch_LRU(id);
-  must_rebuild_file_ = true;
 
   if (!keep_in_buffer)
     write_back(id);
