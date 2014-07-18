@@ -289,12 +289,12 @@ bool ObjectArchive::write_back(size_t id) {
     entry.index_in_file -= header_offset_;
     stream_.write((char*)&entry.data[0], entry.size);
     entry.modified = false;
+    must_rebuild_file_ = true;
   }
 
   entry.data.clear();
   buffer_size_ -= entry.size;
   LRU_.remove(id);
-  must_rebuild_file_ = true;
 
   return true;
 }
