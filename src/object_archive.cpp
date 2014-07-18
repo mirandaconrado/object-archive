@@ -196,7 +196,7 @@ size_t ObjectArchive::load_raw(size_t id, std::string& data,
 
   if (!keep_in_buffer) {
     data.swap(entry.data);
-    entry.data.clear();
+    write_back(id);
   }
   else
     data = entry.data;
