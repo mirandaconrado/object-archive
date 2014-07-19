@@ -61,8 +61,8 @@ SOFTWARE.
 #include <fstream>
 #include <functional>
 #include <list>
-#include <map>
 #include <sstream>
+#include <unordered_map>
 
 class ObjectArchive {
   public:
@@ -168,7 +168,7 @@ class ObjectArchive {
       size_t size; // Total object size. data.size() == size if loaded
       bool modified; // If modified, the file must be written back to disk
     };
-    std::map<size_t, ObjectEntry> objects_;
+    std::unordered_map<size_t, ObjectEntry> objects_;
 
     std::list<size_t> LRU_; // Most recent elements are on the front
 
