@@ -183,7 +183,7 @@ size_t ObjectArchive::load_raw(size_t id, std::string& data,
     if (size + buffer_size_ > max_buffer_size_)
       unload(max_buffer_size_ - size);
 
-    stream_.seekg(entry.index_in_file + header_offset_);
+    stream_.seekg(entry.index_in_file);
     std::string& buf = entry.data;
     buf.resize(size);
     stream_.read(&buf[0], size);
@@ -236,7 +236,7 @@ void ObjectArchive::flush() {
   size_t n_entries = objects_.size();
   temp_stream.write((char*)&n_entries, sizeof(size_t));
 
-  size_t pos = 0;
+  size_t pos = (1+3*objects_.size()) * sizeof(size_t);
   for (auto& it : objects_) {
     size_t id, size;
     ObjectEntry& entry = it.second;
@@ -252,7 +252,7 @@ void ObjectArchive::flush() {
 
   for (auto& it : objects_) {
     ObjectEntry& entry = it.second;
-    stream_.seekg(entry.index_in_file + header_offset_);
+    stream_.seekg(entry.index_in_file);
     size_t size = entry.size;
 
     // Only uses the allowed buffer memory.
@@ -286,7 +286,6 @@ bool ObjectArchive::write_back(size_t id) {
 
   if (entry.modified) {
     entry.index_in_file = stream_.tellp();
-    entry.index_in_file -= header_offset_;
     stream_.write((char*)&entry.data[0], entry.size);
     entry.modified = false;
     must_rebuild_file_ = true;
