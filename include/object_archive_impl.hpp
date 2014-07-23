@@ -92,6 +92,26 @@ ObjectArchive<Key>::~ObjectArchive() {
 }
 
 template <class Key>
+std::string ObjectArchive<Key>::serialize_key(Key const& key) {
+  std::stringstream stream;
+  boost::archive::binary_oarchive ofs(stream);
+  ofs << key;
+
+  return stream.str();
+}
+
+template <class Key>
+Key ObjectArchive<Key>::deserialize_key(std::string const& key_string) {
+  std::stringstream stream(key_string);
+  boost::archive::binary_iarchive ifs(stream);
+
+  Key key;
+  ifs >> key;
+
+  return key;
+}
+
+template <class Key>
 void ObjectArchive<Key>::init(std::string const& filename) {
   flush();
 
@@ -121,11 +141,9 @@ void ObjectArchive<Key>::init(std::string const& filename) {
       std::string key_string;
       key_string.resize(key_size);
       stream_.read(&key_string[0], key_size);
-      std::stringstream stream(key_string);
-      boost::archive::binary_iarchive ifs(stream);
 
       ObjectEntry entry;
-      ifs >> entry.key;
+      entry.key = deserialize_key(key_string);
       entry.index_in_file = stream_.tellg();
       entry.size = data_size;
       entry.modified = false;
@@ -294,11 +312,7 @@ void ObjectArchive<Key>::flush() {
   for (auto& it : objects_) {
     ObjectEntry& entry = it.second;
 
-    std::stringstream stream;
-    boost::archive::binary_oarchive ofs(stream);
-    ofs << entry.key;
-
-    std::string const& key_str = stream.str();
+    std::string key_str = serialize_key(entry.key);
 
     size_t key_size = key_str.size();
     size_t data_size = entry.size;

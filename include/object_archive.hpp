@@ -81,6 +81,9 @@ class ObjectArchive {
     // Unloads the buffer using method flush().
     ~ObjectArchive();
 
+    static std::string serialize_key(Key const& key);
+    static Key deserialize_key(std::string const& key_string);
+
     // Initializes the archive using a new file as backend.
     void init(std::string const& filename);
 
