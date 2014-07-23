@@ -12,18 +12,15 @@ This library takes the latter approach, using a single file for all objects, and
 handles the object positioning for the user. Moreover, a buffer with user-chosen
 size is provided to allow further flexibility.
 
-Each object stored must be serializable through boost and the identifier must be
-hashable. No hash collision prevention is provided! To free part of the buffer,
-the method `unload()` is provided and, to ensure the objects are written to
-disk, the method `defrag()` may be used. Destruction if an ObjectArchive
-automatically ensures the files are stored in disk.
-
-Current drawback: if an object is larger than the buffer size, it can't be
-stored or loaded. This is easy to change, but protects against size bugs.
+Each key and object stored must be serializable through boost and the key must
+be hashable and comparable. To free part of the buffer, the method `unload()` is
+provided and, to ensure the objects are written to disk, the method `flush()`
+may be used. Destruction if an ObjectArchive automatically ensures the files are
+stored in disk.
 
 Example of use:
 ```
-ObjectArchive ar("path/to/file", "1.5G");
+ObjectArchive<std::string> ar("path/to/file", "1.5G");
 ar.insert("filename", filedata);
 [do some stuff]
 ar.load("filename", filedata);
