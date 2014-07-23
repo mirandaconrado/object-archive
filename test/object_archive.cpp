@@ -66,12 +66,16 @@ TEST_F(ObjectArchiveTest, StringConstructor) {
     s2 = ar.insert(id, val);
   }
 
-  {
-    std::fstream fs(filename.string(),
-        std::ios_base::in | std::ios_base::out | std::ios_base::binary);
-    fs.seekp(0, std::ios_base::end);
-    EXPECT_EQ((1+2*3)*sizeof(size_t)+s1+s2, fs.tellp());
-  }
+  std::fstream fs(filename.string(),
+      std::ios_base::in | std::ios_base::out | std::ios_base::binary);
+  fs.seekp(0, std::ios_base::end);
+
+  size_t total_size = 0;
+  total_size += sizeof(size_t)*(1+2*2);
+  total_size += s1+s2;
+  total_size += ObjectArchive<size_t>::serialize_key(0).size();
+  total_size += ObjectArchive<size_t>::serialize_key(2).size();
+  EXPECT_EQ(total_size, fs.tellp());
 }
 
 TEST_F(ObjectArchiveTest, Insert) {
@@ -89,7 +93,13 @@ TEST_F(ObjectArchiveTest, Insert) {
   std::fstream fs(filename.string(),
       std::ios_base::in | std::ios_base::out | std::ios_base::binary);
   fs.seekp(0, std::ios_base::end);
-  EXPECT_EQ((1+2*3)*sizeof(size_t)+s1+s2, fs.tellp());
+
+  size_t total_size = 0;
+  total_size += sizeof(size_t)*(1+2*2);
+  total_size += s1+s2;
+  total_size += ObjectArchive<size_t>::serialize_key(0).size();
+  total_size += ObjectArchive<size_t>::serialize_key(2).size();
+  EXPECT_EQ(total_size, fs.tellp());
 }
 
 TEST_F(ObjectArchiveTest, InsertOverwrite) {
@@ -101,13 +111,18 @@ TEST_F(ObjectArchiveTest, InsertOverwrite) {
     id = 0; val = "1";
     s1 = ar.insert(id, val);
     id = 0; val = "3";
-    ar.insert(id, val);
+    s1 = ar.insert(id, val);
   }
 
   std::fstream fs(filename.string(),
       std::ios_base::in | std::ios_base::out | std::ios_base::binary);
   fs.seekp(0, std::ios_base::end);
-  EXPECT_EQ((1+1*3)*sizeof(size_t)+s1, fs.tellp());
+
+  size_t total_size = 0;
+  total_size += sizeof(size_t)*(1+1*2);
+  total_size += s1;
+  total_size += ObjectArchive<size_t>::serialize_key(0).size();
+  EXPECT_EQ(total_size, fs.tellp());
 }
 
 TEST_F(ObjectArchiveTest, InsertOverwriteReopen) {
@@ -124,7 +139,12 @@ TEST_F(ObjectArchiveTest, InsertOverwriteReopen) {
     std::fstream fs(filename.string(),
         std::ios_base::in | std::ios_base::out | std::ios_base::binary);
     fs.seekp(0, std::ios_base::end);
-    EXPECT_EQ((1+1*3)*sizeof(size_t)+s1, fs.tellp());
+
+    size_t total_size = 0;
+    total_size += sizeof(size_t)*(1+1*2);
+    total_size += s1;
+    total_size += ObjectArchive<size_t>::serialize_key(0).size();
+    EXPECT_EQ(total_size, fs.tellp());
   }
 
   {
@@ -142,7 +162,12 @@ TEST_F(ObjectArchiveTest, InsertOverwriteReopen) {
     std::fstream fs(filename.string(),
         std::ios_base::in | std::ios_base::out | std::ios_base::binary);
     fs.seekp(0, std::ios_base::end);
-    EXPECT_EQ((1+1*3)*sizeof(size_t)+s1, fs.tellp());
+
+    size_t total_size = 0;
+    total_size += sizeof(size_t)*(1+1*2);
+    total_size += s1;
+    total_size += ObjectArchive<size_t>::serialize_key(0).size();
+    EXPECT_EQ(total_size, fs.tellp());
   }
 
   {
@@ -170,7 +195,14 @@ TEST_F(ObjectArchiveTest, InsertSmallBuffer) {
   std::fstream fs(filename.string(),
       std::ios_base::in | std::ios_base::out | std::ios_base::binary);
   fs.seekp(0, std::ios_base::end);
-  EXPECT_EQ((1+2*3)*sizeof(size_t)+s1+s2, fs.tellp());
+
+  size_t total_size = 0;
+  total_size += sizeof(size_t)*(1+2*2);
+  total_size += s1;
+  total_size += s2;
+  total_size += ObjectArchive<size_t>::serialize_key(0).size();
+  total_size += ObjectArchive<size_t>::serialize_key(2).size();
+  EXPECT_EQ(total_size, fs.tellp());
 }
 
 TEST_F(ObjectArchiveTest, InsertTooLarge) {
@@ -186,7 +218,12 @@ TEST_F(ObjectArchiveTest, InsertTooLarge) {
   std::fstream fs(filename.string(),
       std::ios_base::in | std::ios_base::out | std::ios_base::binary);
   fs.seekp(0, std::ios_base::end);
-  EXPECT_EQ((1+1*3)*sizeof(size_t)+s1, fs.tellp());
+
+  size_t total_size = 0;
+  total_size += sizeof(size_t)*(1+1*2);
+  total_size += s1;
+  total_size += ObjectArchive<size_t>::serialize_key(0).size();
+  EXPECT_EQ(total_size, fs.tellp());
 }
 
 TEST_F(ObjectArchiveTest, Reopen) {
@@ -224,7 +261,14 @@ TEST_F(ObjectArchiveTest, Remove) {
     std::fstream fs(filename.string(),
         std::ios_base::in | std::ios_base::out | std::ios_base::binary);
     fs.seekp(0, std::ios_base::end);
-    EXPECT_EQ((1+2*3)*sizeof(size_t)+s1+s2, fs.tellp());
+
+    size_t total_size = 0;
+    total_size += sizeof(size_t)*(1+2*2);
+    total_size += s1;
+    total_size += s2;
+    total_size += ObjectArchive<size_t>::serialize_key(0).size();
+    total_size += ObjectArchive<size_t>::serialize_key(2).size();
+    EXPECT_EQ(total_size, fs.tellp());
   }
 
   {
@@ -236,7 +280,12 @@ TEST_F(ObjectArchiveTest, Remove) {
     std::fstream fs(filename.string(),
         std::ios_base::in | std::ios_base::out | std::ios_base::binary);
     fs.seekp(0, std::ios_base::end);
-    EXPECT_EQ((1+1*3)*sizeof(size_t)+s2, fs.tellp());
+
+    size_t total_size = 0;
+    total_size += sizeof(size_t)*(1+1*2);
+    total_size += s2;
+    total_size += ObjectArchive<size_t>::serialize_key(2).size();
+    EXPECT_EQ(total_size, fs.tellp());
   }
 
   ObjectArchive<size_t> ar(filename.string(), 2);
@@ -311,7 +360,14 @@ TEST_F(ObjectArchiveTest, DontKeepInBuffer) {
   std::fstream fs(filename.string(),
       std::ios_base::in | std::ios_base::out | std::ios_base::binary);
   fs.seekp(0, std::ios_base::end);
-  EXPECT_EQ((1+2*3)*sizeof(size_t)+s1+s2, fs.tellp());
+
+  size_t total_size = 0;
+  total_size += sizeof(size_t)*(1+2*2);
+  total_size += s1;
+  total_size += s2;
+  total_size += ObjectArchive<size_t>::serialize_key(0).size();
+  total_size += ObjectArchive<size_t>::serialize_key(2).size();
+  EXPECT_EQ(total_size, fs.tellp());
 
   {
     ObjectArchive<size_t> ar(filename.string(), 100);
