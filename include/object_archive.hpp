@@ -37,15 +37,15 @@ SOFTWARE.
 // To make sure that the objects are written, the user can call flush(), which
 // will completely rebuild the file.
 //
-// Each object is referenced by an id, which by default is the hash of its key
-// unless it's an size_t. Hash collisions are NOT handled! The object must be
-// serializable through boost.
+// Each object is referenced by a key, whose type must be hashable and
+// comparable, as it's used inside as index to an unordered_map. Both the key
+// and the object must be serializable through boost.
 //
 // Note: the maximum buffer size provided isn't the maximum size that will
-// actually be used, as there is a minor overhead for bookkeeping.
+// actually be used, as there is an overhead for bookkeeping.
 //
 // Example:
-// ObjectArchive ar("path/to/file", "1.5G");
+// ObjectArchive<std::string> ar("path/to/file", "1.5G");
 // ar.insert("filename", filedata);
 // [do some stuff]
 // ar.load("filename", filedata);

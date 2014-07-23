@@ -22,15 +22,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-// Each archive has a header with the following format:
-// 1) Number of entries;
-// 2) For each entry, the following values:
-// 2.1) The id of the object;
-// 2.2) The position of the object inside the file;
-// 2.3) The size of the object.
-//
-// Each entry is of type size_t and the header isn't taken into account for the
-// object position.
+// Each archive has a entries with the following format:
+// 1) Number of entries (size_t);
+// 2.1) Size of the key (size_t);
+// 2.2) Size of the object (size_t);
+// 2.3) Key as serialized by boost;
+// 2.4) Object as serialized by boost.
 
 #ifndef __OBJECT_ARCHIVE_IMPL_HPP__
 #define __OBJECT_ARCHIVE_IMPL_HPP__
