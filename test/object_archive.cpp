@@ -45,7 +45,7 @@ class ObjectArchiveTest: public ::testing::Test {
 
 TEST_F(ObjectArchiveTest, Empty) {
   {
-    ObjectArchive ar(filename.string(), 0);
+    ObjectArchive<size_t> ar(filename.string(), 0);
   }
 
   std::fstream fs(filename.string(),
@@ -57,7 +57,7 @@ TEST_F(ObjectArchiveTest, Empty) {
 TEST_F(ObjectArchiveTest, StringConstructor) {
   size_t s1, s2;
   {
-    ObjectArchive ar(filename.string(), "0.05k");
+    ObjectArchive<size_t> ar(filename.string(), "0.05k");
     size_t id;
     std::string val;
     id = 0; val = "1";
@@ -77,7 +77,7 @@ TEST_F(ObjectArchiveTest, StringConstructor) {
 TEST_F(ObjectArchiveTest, Insert) {
   size_t s1, s2;
   {
-    ObjectArchive ar(filename.string(), 100);
+    ObjectArchive<size_t> ar(filename.string(), 100);
     size_t id;
     std::string val;
     id = 0; val = "1";
@@ -95,7 +95,7 @@ TEST_F(ObjectArchiveTest, Insert) {
 TEST_F(ObjectArchiveTest, InsertOverwrite) {
   size_t s1;
   {
-    ObjectArchive ar(filename.string(), 100);
+    ObjectArchive<size_t> ar(filename.string(), 100);
     size_t id;
     std::string val;
     id = 0; val = "1";
@@ -113,7 +113,7 @@ TEST_F(ObjectArchiveTest, InsertOverwrite) {
 TEST_F(ObjectArchiveTest, InsertOverwriteReopen) {
   size_t s1;
   {
-    ObjectArchive ar(filename.string(), 100);
+    ObjectArchive<size_t> ar(filename.string(), 100);
     size_t id;
     std::string val;
     id = 0; val = "1";
@@ -128,7 +128,7 @@ TEST_F(ObjectArchiveTest, InsertOverwriteReopen) {
   }
 
   {
-    ObjectArchive ar(filename.string(), 100);
+    ObjectArchive<size_t> ar(filename.string(), 100);
     size_t id;
     std::string val;
     id = 0;
@@ -146,7 +146,7 @@ TEST_F(ObjectArchiveTest, InsertOverwriteReopen) {
   }
 
   {
-    ObjectArchive ar(filename.string(), 100);
+    ObjectArchive<size_t> ar(filename.string(), 100);
     size_t id;
     std::string val;
     id = 0;
@@ -158,7 +158,7 @@ TEST_F(ObjectArchiveTest, InsertOverwriteReopen) {
 TEST_F(ObjectArchiveTest, InsertSmallBuffer) {
   size_t s1, s2;
   {
-    ObjectArchive ar(filename.string(), 50);
+    ObjectArchive<size_t> ar(filename.string(), 50);
     size_t id;
     std::string val;
     id = 0; val = "1";
@@ -176,7 +176,7 @@ TEST_F(ObjectArchiveTest, InsertSmallBuffer) {
 TEST_F(ObjectArchiveTest, InsertTooLarge) {
   size_t s1;
   {
-    ObjectArchive ar(filename.string(), 1);
+    ObjectArchive<size_t> ar(filename.string(), 1);
     size_t id;
     std::string val;
     id = 0; val = "1";
@@ -191,7 +191,7 @@ TEST_F(ObjectArchiveTest, InsertTooLarge) {
 
 TEST_F(ObjectArchiveTest, Reopen) {
   {
-    ObjectArchive ar(filename.string(), 100);
+    ObjectArchive<size_t> ar(filename.string(), 100);
     size_t id;
     std::string val;
     id = 0; val = "1";
@@ -200,18 +200,18 @@ TEST_F(ObjectArchiveTest, Reopen) {
     ar.insert(id, val);
   }
 
-  ObjectArchive ar(filename.string(), 100);
+  ObjectArchive<size_t> ar(filename.string(), 100);
   auto available = ar.available_objects();
-  if (*available.begin() == 0)
-    EXPECT_EQ(2, *++available.begin());
-  else if (*available.begin() == 2)
-    EXPECT_EQ(0, *++available.begin());
+  if (**available.begin() == 0)
+    EXPECT_EQ(2, **++available.begin());
+  else if (**available.begin() == 2)
+    EXPECT_EQ(0, **++available.begin());
 }
 
 TEST_F(ObjectArchiveTest, Remove) {
   size_t s1, s2;
   {
-    ObjectArchive ar(filename.string(), 100);
+    ObjectArchive<size_t> ar(filename.string(), 100);
     size_t id;
     std::string val;
     id = 0; val = "1";
@@ -228,7 +228,7 @@ TEST_F(ObjectArchiveTest, Remove) {
   }
 
   {
-    ObjectArchive ar(filename.string(), 2);
+    ObjectArchive<size_t> ar(filename.string(), 2);
     ar.remove(0);
   }
 
@@ -239,15 +239,15 @@ TEST_F(ObjectArchiveTest, Remove) {
     EXPECT_EQ((1+1*3)*sizeof(size_t)+s2, fs.tellp());
   }
 
-  ObjectArchive ar(filename.string(), 2);
+  ObjectArchive<size_t> ar(filename.string(), 2);
   auto available = ar.available_objects();
-  EXPECT_EQ(2, *available.begin());
+  EXPECT_EQ(2, **available.begin());
 }
 
 TEST_F(ObjectArchiveTest, Load) {
   size_t s1, s2;
   {
-    ObjectArchive ar(filename.string(), 50);
+    ObjectArchive<size_t> ar(filename.string(), 50);
     size_t id;
     std::string val;
     id = 0; val = "1";
@@ -264,7 +264,7 @@ TEST_F(ObjectArchiveTest, Load) {
   }
 
   {
-    ObjectArchive ar(filename.string(), 100);
+    ObjectArchive<size_t> ar(filename.string(), 100);
     size_t id;
     std::string val;
     id = 0;
@@ -279,7 +279,7 @@ TEST_F(ObjectArchiveTest, Load) {
 TEST_F(ObjectArchiveTest, LoadTooLarge) {
   size_t s1;
   {
-    ObjectArchive ar(filename.string(), 50);
+    ObjectArchive<size_t> ar(filename.string(), 50);
     size_t id;
     std::string val;
     id = 0; val = "1";
@@ -287,7 +287,7 @@ TEST_F(ObjectArchiveTest, LoadTooLarge) {
   }
 
   {
-    ObjectArchive ar(filename.string(), 1);
+    ObjectArchive<size_t> ar(filename.string(), 1);
     size_t id;
     std::string val;
     id = 0;
@@ -299,7 +299,7 @@ TEST_F(ObjectArchiveTest, LoadTooLarge) {
 TEST_F(ObjectArchiveTest, DontKeepInBuffer) {
   size_t s1, s2;
   {
-    ObjectArchive ar(filename.string(), 100);
+    ObjectArchive<size_t> ar(filename.string(), 100);
     size_t id;
     std::string val;
     id = 0; val = "1";
@@ -314,7 +314,7 @@ TEST_F(ObjectArchiveTest, DontKeepInBuffer) {
   EXPECT_EQ((1+2*3)*sizeof(size_t)+s1+s2, fs.tellp());
 
   {
-    ObjectArchive ar(filename.string(), 100);
+    ObjectArchive<size_t> ar(filename.string(), 100);
     size_t id;
     std::string val;
     id = 0;
@@ -329,7 +329,7 @@ TEST_F(ObjectArchiveTest, DontKeepInBuffer) {
 TEST_F(ObjectArchiveTest, Flush) {
   size_t s1, s2;
   {
-    ObjectArchive ar(filename.string(), 100);
+    ObjectArchive<size_t> ar(filename.string(), 100);
     size_t id;
     std::string val;
     id = 0; val = "1";

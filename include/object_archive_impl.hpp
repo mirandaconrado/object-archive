@@ -32,12 +32,16 @@ SOFTWARE.
 // Each entry is of type size_t and the header isn't taken into account for the
 // object position.
 
+#ifndef __OBJECT_ARCHIVE_IMPL_HPP__
+#define __OBJECT_ARCHIVE_IMPL_HPP__
+
 #include "object_archive.hpp"
 
 #include <algorithm>
 #include <boost/filesystem.hpp>
 
-ObjectArchive::ObjectArchive(std::string const& filename,
+template <class Key>
+ObjectArchive<Key>::ObjectArchive(std::string const& filename,
     size_t max_buffer_size):
   must_rebuild_file_(false),
   max_buffer_size_(max_buffer_size),
@@ -48,7 +52,8 @@ ObjectArchive::ObjectArchive(std::string const& filename,
       max_buffer_size_ = 1;
 }
 
-ObjectArchive::ObjectArchive(std::string const& filename,
+template <class Key>
+ObjectArchive<Key>::ObjectArchive(std::string const& filename,
     std::string const& max_buffer_size):
   ObjectArchive(filename, 0) {
     size_t length = max_buffer_size.size();
@@ -81,11 +86,13 @@ ObjectArchive::ObjectArchive(std::string const& filename,
       max_buffer_size_ = 1;
 }
 
-ObjectArchive::~ObjectArchive() {
+template <class Key>
+ObjectArchive<Key>::~ObjectArchive() {
   flush();
 }
 
-void ObjectArchive::init(std::string const& filename) {
+template <class Key>
+void ObjectArchive<Key>::init(std::string const& filename) {
   flush();
 
   filename_ = filename;
@@ -106,68 +113,107 @@ void ObjectArchive::init(std::string const& filename) {
     stream_.read((char*)&n_entries, sizeof(size_t));
 
     for (size_t i = 0; i < n_entries; i++) {
-      size_t id, pos, size;
-      stream_.read((char*)&id, sizeof(size_t));
-      stream_.read((char*)&pos, sizeof(size_t));
-      stream_.read((char*)&size, sizeof(size_t));
+      size_t key_size;
+      size_t data_size;
+      stream_.read((char*)&key_size, sizeof(size_t));
+      stream_.read((char*)&data_size, sizeof(size_t));
+
+      std::string key_string;
+      key_string.resize(key_size);
+      stream_.read(&key_string[0], key_size);
+      std::stringstream stream(key_string);
+      boost::archive::binary_iarchive ifs(stream);
 
       ObjectEntry entry;
-      entry.index_in_file = pos;
-      entry.size = size;
+      ifs >> entry.key;
+      entry.index_in_file = stream_.tellg();
+      entry.size = data_size;
       entry.modified = false;
-      objects_[id] = entry;
-    }
+      objects_[entry.key] = entry;
 
-    header_offset_ = stream_.tellg();
+      stream_.seekg(data_size, std::ios_base::cur);
+    }
   }
   else {
     stream_.open(filename, std::ios_base::in | std::ios_base::out |
         std::ios_base::binary | std::ios_base::trunc);
-    header_offset_ = 0;
   }
 }
 
-void ObjectArchive::remove(size_t id) {
-  auto it = objects_.find(id);
+template <class Key>
+void ObjectArchive<Key>::remove(Key const& key) {
+  auto it = objects_.find(key);
   if (it == objects_.end())
     return;
 
   ObjectEntry& entry = it->second;
   if (entry.data.size())
     buffer_size_ -= entry.size;
-  objects_.erase(id);
-  LRU_.remove(id);
+  objects_.erase(key);
+  LRU_.remove(&entry);
   must_rebuild_file_ = true;
 }
 
-size_t ObjectArchive::insert_raw(size_t id, std::string&& data,
+template <class Key>
+template <class T>
+size_t ObjectArchive<Key>::insert(Key const& key, T const& obj,
+    bool keep_in_buffer) {
+  std::stringstream stream;
+  boost::archive::binary_oarchive ofs(stream);
+  ofs << obj;
+  return insert_raw(key, stream.str(), keep_in_buffer);
+}
+
+template <class Key>
+size_t ObjectArchive<Key>::insert_raw(Key const& key, std::string const& data,
+    bool keep_in_buffer) {
+  return insert_raw(key, std::string(data), keep_in_buffer);
+}
+
+template <class Key>
+size_t ObjectArchive<Key>::insert_raw(Key const& key, std::string&& data,
     bool keep_in_buffer) {
   size_t size = data.size();
   if (size > max_buffer_size_)
     keep_in_buffer = false;
 
-  remove(id);
+  remove(key);
 
   if (size + buffer_size_ > max_buffer_size_ && keep_in_buffer)
     unload(max_buffer_size_ - size);
 
   buffer_size_ += size;
 
-  ObjectEntry& entry = objects_[id];
+  ObjectEntry& entry = objects_[key];
+  entry.key = key;
   entry.data.swap(data);
   entry.size = size;
   entry.modified = true;
-  touch_LRU(id);
+
+  touch_LRU(&entry);
 
   if (!keep_in_buffer)
-    write_back(id);
+    write_back(key);
 
   return size;
 }
 
-size_t ObjectArchive::load_raw(size_t id, std::string& data,
+template <class Key>
+template <class T>
+size_t ObjectArchive<Key>::load(Key const& key, T& obj, bool keep_in_buffer) {
+  std::string s;
+  size_t ret = load_raw(key, s, keep_in_buffer);
+  if (ret == 0) return 0;
+  std::stringstream stream(s);
+  boost::archive::binary_iarchive ifs(stream);
+  ifs >> obj;
+  return ret;
+}
+
+template <class Key>
+size_t ObjectArchive<Key>::load_raw(Key const& key, std::string& data,
     bool keep_in_buffer) {
-  auto it = objects_.find(id);
+  auto it = objects_.find(key);
   if (it == objects_.end())
     return 0;
 
@@ -192,11 +238,15 @@ size_t ObjectArchive::load_raw(size_t id, std::string& data,
     entry.modified = false;
   }
 
-  touch_LRU(id);
+  touch_LRU(&entry);
 
   if (!keep_in_buffer) {
-    data.swap(entry.data);
-    write_back(id);
+    if (!entry.modified)
+      data.swap(entry.data);
+    else
+      data = entry.data;
+
+    write_back(key);
   }
   else
     data = entry.data;
@@ -204,20 +254,23 @@ size_t ObjectArchive::load_raw(size_t id, std::string& data,
   return size;
 }
 
-void ObjectArchive::unload(size_t desired_size) {
+template <class Key>
+void ObjectArchive<Key>::unload(size_t desired_size) {
   while (buffer_size_ > desired_size)
-    write_back(LRU_.back());
+    write_back(LRU_.back()->key);
 }
 
-std::list<size_t> ObjectArchive::available_objects() const {
-  std::list<size_t> list;
+template <class Key>
+std::list<Key const*> ObjectArchive<Key>::available_objects() const {
+  std::list<Key const*> list;
   for (auto& it : objects_)
-    list.push_front(it.first);
+    list.push_front(&it.second.key);
 
   return list;
 }
 
-void ObjectArchive::flush() {
+template <class Key>
+void ObjectArchive<Key>::flush() {
   unload();
 
   if (!must_rebuild_file_)
@@ -236,24 +289,27 @@ void ObjectArchive::flush() {
   size_t n_entries = objects_.size();
   temp_stream.write((char*)&n_entries, sizeof(size_t));
 
-  size_t pos = (1+3*objects_.size()) * sizeof(size_t);
-  for (auto& it : objects_) {
-    size_t id, size;
-    ObjectEntry& entry = it.second;
-    id = it.first;
-    size = entry.size;
-    temp_stream.write((char*)&id, sizeof(size_t));
-    temp_stream.write((char*)&pos, sizeof(size_t));
-    temp_stream.write((char*)&size, sizeof(size_t));
-    pos += size;
-  }
-
   char* temp_buffer = new char[max_buffer_size_];
 
   for (auto& it : objects_) {
     ObjectEntry& entry = it.second;
+
+    std::stringstream stream;
+    boost::archive::binary_oarchive ofs(stream);
+    ofs << entry.key;
+
+    std::string const& key_str = stream.str();
+
+    size_t key_size = key_str.size();
+    size_t data_size = entry.size;
+
+    temp_stream.write((char*)&key_size, sizeof(size_t));
+    temp_stream.write((char*)&data_size, sizeof(size_t));
+
+    temp_stream.write((char*)&key_str[0], key_size);
+
     stream_.seekg(entry.index_in_file);
-    size_t size = entry.size;
+    size_t size = data_size;
 
     // Only uses the allowed buffer memory.
     for (;
@@ -277,8 +333,9 @@ void ObjectArchive::flush() {
   init(filename_);
 }
 
-bool ObjectArchive::write_back(size_t id) {
-  auto it = objects_.find(id);
+template <class Key>
+bool ObjectArchive<Key>::write_back(Key const& key) {
+  auto it = objects_.find(key);
   if (it == objects_.end())
     return false;
 
@@ -293,12 +350,15 @@ bool ObjectArchive::write_back(size_t id) {
 
   entry.data.clear();
   buffer_size_ -= entry.size;
-  LRU_.remove(id);
+  LRU_.remove(&entry);
 
   return true;
 }
 
-void ObjectArchive::touch_LRU(size_t id) {
-  LRU_.remove(id);
-  LRU_.push_front(id);
+template <class Key>
+void ObjectArchive<Key>::touch_LRU(ObjectEntry const* entry) {
+  LRU_.remove(entry);
+  LRU_.push_front(entry);
 }
+
+#endif

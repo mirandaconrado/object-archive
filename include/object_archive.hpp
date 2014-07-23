@@ -64,6 +64,7 @@ SOFTWARE.
 #include <sstream>
 #include <unordered_map>
 
+template <class Key>
 class ObjectArchive {
   public:
     // Loads the archive at the given path and associates the maximum buffer
@@ -84,32 +85,23 @@ class ObjectArchive {
     void init(std::string const& filename);
 
     // Removes an object entry if it's present.
-    void remove(size_t id);
+    void remove(Key const& key);
 
     // Stores an object and associates it with an id and returns the total size
     // stored.
     // If the object is larger than the buffer's maximum size, it isn't
     // kept in memory. The user can choose to not add the object to buffer,
     // which is useful if it won't be used again.
-    template <class T1, class T2>
-    size_t insert(T1 const& id, T2 const& obj,
-        bool keep_in_buffer = true) {
-      return insert(std::hash<T1>()(id), obj, keep_in_buffer);
-    }
-
     template <class T>
-    size_t insert(size_t const& id, T const& obj, bool keep_in_buffer = true) {
-      std::stringstream stream;
-      boost::archive::binary_oarchive ofs(stream);
-      ofs << obj;
-      return insert_raw(id, stream.str(), keep_in_buffer);
-    }
+    size_t insert(Key const& key, T const& obj, bool keep_in_buffer = true);
 
     // Stores an object that has already been serialized.
     // If the object is larger than the buffer's maximum size, it isn't
     // kept in memory. The user can choose to not add the object to buffer,
     // which is useful if it won't be used again.
-    size_t insert_raw(size_t id, std::string&& data,
+    size_t insert_raw(Key const& key, std::string const& data,
+        bool keep_in_buffer = true);
+    size_t insert_raw(Key const& key, std::string&& data,
         bool keep_in_buffer = true);
 
     // Loads the object associated with the id and stores at val. Returns the
@@ -117,27 +109,15 @@ class ObjectArchive {
     // If the object is larger than the buffer's maximum size, it isn't
     // kept in memory. The user can choose to not add the object to buffer,
     // which is useful if it won't be used again.
-    template <class T1, class T2>
-    size_t load(T1 const& id, T2& obj, bool keep_in_buffer = true) {
-      return load(std::hash<T1>()(id), obj, keep_in_buffer);
-    }
-
     template <class T>
-    size_t load(size_t const& id, T& obj, bool keep_in_buffer = true) {
-      std::string s;
-      size_t ret = load_raw(id, s, keep_in_buffer);
-      if (ret == 0) return 0;
-      std::stringstream stream(s);
-      boost::archive::binary_iarchive ifs(stream);
-      ifs >> obj;
-      return ret;
-    }
+    size_t load(Key const& key, T& obj, bool keep_in_buffer = true);
 
     // Loads the raw serialized data of an object.
     // If the object is larger than the buffer's maximum size, it isn't
     // kept in memory. The user can choose to not add the object to buffer,
     // which is useful if it won't be used again.
-    size_t load_raw(size_t id, std::string& data, bool keep_in_buffer = true);
+    size_t load_raw(Key const& key, std::string& data,
+        bool keep_in_buffer = true);
 
     // Saves the least recently used entries so that the buffer size is at most
     // the value given in the argument. By default, frees the full buffer. If
@@ -145,7 +125,7 @@ class ObjectArchive {
     void unload(size_t desired_size = 0);
 
     // Gets a list of all the results stored in this archive.
-    std::list<size_t> available_objects() const;
+    std::list<Key const*> available_objects() const;
 
     // Flushs the archive, guaranteeing that the data is saved to a file, which
     // can be used later or continue to be used. The buffer is empty after this
@@ -155,22 +135,24 @@ class ObjectArchive {
   private:
     // Writes a file back to disk, freeing its buffer space. Returns if the
     // object id is inside the buffer.
-    bool write_back(size_t id);
+    bool write_back(Key const& key);
 
     // Puts the id in the front of the list, saying it was the last one used.
-    void touch_LRU(size_t id);
+    struct ObjectEntry;
+    void touch_LRU(ObjectEntry const* entry);
 
     // Holds the entry for one object with all the information required to
     // manage it.
     struct ObjectEntry {
+      Key key;
       std::string data; // Data for the object
       size_t index_in_file; // Index for finding it inside a file
       size_t size; // Total object size. data.size() == size if loaded
       bool modified; // If modified, the file must be written back to disk
     };
-    std::unordered_map<size_t, ObjectEntry> objects_;
+    std::unordered_map<Key, ObjectEntry> objects_;
 
-    std::list<size_t> LRU_; // Most recent elements are on the front
+    std::list<ObjectEntry const*> LRU_; // Most recent elements are on the front
 
     std::string filename_;
 
@@ -178,10 +160,11 @@ class ObjectArchive {
     bool must_rebuild_file_;
 
     size_t max_buffer_size_, // Argument provided at creation
-      buffer_size_, // Current buffer size
-      header_offset_; // Offset to the file positions caused by the header
+      buffer_size_; // Current buffer size
 
     std::fstream stream_;
 };
+
+#include "object_archive_impl.hpp"
 
 #endif
