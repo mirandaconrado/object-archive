@@ -382,6 +382,16 @@ TEST_F(ObjectArchiveTest, DontKeepInBuffer) {
   }
 }
 
+TEST_F(ObjectArchiveTest, IsAvailable) {
+  ObjectArchive<size_t> ar(filename.string(), 100);
+  size_t id;
+  std::string val;
+  id = 0; val = "1";
+  ar.insert(id, val);
+
+  EXPECT_TRUE(ar.is_available(id));
+}
+
 TEST_F(ObjectArchiveTest, Flush) {
   size_t s1, s2;
   {

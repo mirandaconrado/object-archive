@@ -276,6 +276,13 @@ void ObjectArchive<Key>::unload(size_t desired_size) {
 }
 
 template <class Key>
+bool ObjectArchive<Key>::is_available(Key const& key) const {
+  if (objects_.find(key) == objects_.end())
+    return false;
+  return true;
+}
+
+template <class Key>
 std::list<Key const*> ObjectArchive<Key>::available_objects() const {
   std::list<Key const*> list;
   for (auto& it : objects_)
