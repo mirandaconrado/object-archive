@@ -345,6 +345,14 @@ void ObjectArchive<Key>::flush() {
 }
 
 template <class Key>
+void ObjectArchive<Key>::clear() {
+  objects_.clear();
+  LRU_.clear();
+  must_rebuild_file_ = true;
+  flush();
+}
+
+template <class Key>
 bool ObjectArchive<Key>::write_back(Key const& key) {
   auto it = objects_.find(key);
   if (it == objects_.end())

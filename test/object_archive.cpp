@@ -403,3 +403,43 @@ TEST_F(ObjectArchiveTest, Flush) {
     EXPECT_EQ(std::string("3"), val);
   }
 }
+
+TEST_F(ObjectArchiveTest, Clear) {
+  size_t s1, s2;
+  {
+    ObjectArchive<size_t> ar(filename.string(), 100);
+    size_t id;
+    std::string val;
+    id = 0; val = "1";
+    s1 = ar.insert(id, val);
+    id = 2; val = "3";
+    s2 = ar.insert(id, val);
+  }
+
+  {
+    std::fstream fs(filename.string(),
+        std::ios_base::in | std::ios_base::out | std::ios_base::binary);
+    fs.seekp(0, std::ios_base::end);
+
+    size_t total_size = 0;
+    total_size += sizeof(size_t)*(1+2*2);
+    total_size += s1+s2;
+    total_size += ObjectArchive<size_t>::serialize_key(0).size();
+    total_size += ObjectArchive<size_t>::serialize_key(2).size();
+    EXPECT_EQ(total_size, fs.tellp());
+  }
+
+  {
+    ObjectArchive<size_t> ar(filename.string(), 100);
+    ar.clear();
+  }
+
+  {
+    std::fstream fs(filename.string(),
+        std::ios_base::in | std::ios_base::out | std::ios_base::binary);
+    fs.seekp(0, std::ios_base::end);
+
+    size_t total_size = sizeof(size_t);
+    EXPECT_EQ(total_size, fs.tellp());
+  }
+}

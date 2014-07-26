@@ -135,6 +135,9 @@ class ObjectArchive {
     // method, but the archive can still be used.
     void flush();
 
+    // Removes every object entry from the archive and flushes it.
+    void clear();
+
   private:
     // Writes a file back to disk, freeing its buffer space. Returns if the
     // object id is inside the buffer.
