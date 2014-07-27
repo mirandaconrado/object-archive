@@ -41,11 +41,18 @@ SOFTWARE.
 // comparable, as it's used inside as index to an unordered_map. Both the key
 // and the object must be serializable through boost.
 //
+// The default buffer size is zero, so no objects are kept in memory, and a
+// temporary file is used as backend. For permanent storage, the user must
+// provide its own filename to use.
+//
 // Note: the maximum buffer size provided isn't the maximum size that will
 // actually be used, as there is an overhead for bookkeeping.
 //
 // Example:
-// ObjectArchive<std::string> ar("path/to/file", "1.5G");
+// ObjectArchive<std::string> ar;
+// ar.init("path/to/file");
+// ar.set_buffer_size("1.5G");
+//
 // ar.insert("filename", filedata);
 // [do some stuff]
 // ar.load("filename", filedata);
