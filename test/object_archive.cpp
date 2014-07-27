@@ -26,8 +26,6 @@ SOFTWARE.
 
 #include <gtest/gtest.h>
 
-#include <boost/filesystem.hpp>
-
 class ObjectArchiveTest: public ::testing::Test {
   protected:
     boost::filesystem::path filename;
