@@ -81,6 +81,7 @@ class ObjectArchive {
     // Unloads the buffer using method flush().
     ~ObjectArchive();
 
+    // Passes the key through boost serialize, making it easier to store/load.
     static std::string serialize_key(Key const& key);
     static Key deserialize_key(std::string const& key_string);
 
