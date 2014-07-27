@@ -99,14 +99,14 @@ class ObjectArchive {
     // Stores an object and associates it with an id and returns the total size
     // stored.
     // If the object is larger than the buffer's maximum size, it isn't
-    // kept in memory. The user can choose to not add the object to buffer,
+    // kept in memory. The user can choose not to add the object to buffer,
     // which is useful if it won't be used again.
     template <class T>
     size_t insert(Key const& key, T const& obj, bool keep_in_buffer = true);
 
     // Stores an object that has already been serialized.
     // If the object is larger than the buffer's maximum size, it isn't
-    // kept in memory. The user can choose to not add the object to buffer,
+    // kept in memory. The user can choose not to add the object to buffer,
     // which is useful if it won't be used again.
     size_t insert_raw(Key const& key, std::string const& data,
         bool keep_in_buffer = true);
@@ -116,14 +116,14 @@ class ObjectArchive {
     // Loads the object associated with the id and stores at val. Returns the
     // total size of the object, which is 0 if the object isn't found.
     // If the object is larger than the buffer's maximum size, it isn't
-    // kept in memory. The user can choose to not add the object to buffer,
+    // kept in memory. The user can choose not to add the object to buffer,
     // which is useful if it won't be used again.
     template <class T>
     size_t load(Key const& key, T& obj, bool keep_in_buffer = true);
 
     // Loads the raw serialized data of an object.
     // If the object is larger than the buffer's maximum size, it isn't
-    // kept in memory. The user can choose to not add the object to buffer,
+    // kept in memory. The user can choose not to add the object to buffer,
     // which is useful if it won't be used again.
     size_t load_raw(Key const& key, std::string& data,
         bool keep_in_buffer = true);
