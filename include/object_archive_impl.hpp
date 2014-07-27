@@ -48,7 +48,7 @@ ObjectArchive<Key>::ObjectArchive():
 
 template <class Key>
 ObjectArchive<Key>::~ObjectArchive() {
-  flush();
+  internal_flush();
   stream_.close();
   if (temporary_file_)
     boost::filesystem::remove(filename_);
@@ -88,7 +88,7 @@ void ObjectArchive<Key>::init() {
 
 template <class Key>
 void ObjectArchive<Key>::init(std::string const& filename) {
-  flush();
+  internal_flush();
 
   stream_.close();
   if (temporary_file_)
@@ -311,6 +311,20 @@ std::list<Key const*> ObjectArchive<Key>::available_objects() const {
 
 template <class Key>
 void ObjectArchive<Key>::flush() {
+  internal_flush();
+  init(filename_);
+}
+
+template <class Key>
+void ObjectArchive<Key>::clear() {
+  objects_.clear();
+  LRU_.clear();
+  must_rebuild_file_ = true;
+  flush();
+}
+
+template <class Key>
+void ObjectArchive<Key>::internal_flush() {
   unload();
 
   if (!must_rebuild_file_)
@@ -365,16 +379,6 @@ void ObjectArchive<Key>::flush() {
 
   boost::filesystem::remove(filename_);
   boost::filesystem::rename(temp_filename, filename_);
-
-  init(filename_);
-}
-
-template <class Key>
-void ObjectArchive<Key>::clear() {
-  objects_.clear();
-  LRU_.clear();
-  must_rebuild_file_ = true;
-  flush();
 }
 
 template <class Key>

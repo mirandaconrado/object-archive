@@ -148,6 +148,9 @@ class ObjectArchive {
     void clear();
 
   private:
+    // Same as external flush, but the archive can't be used anymore.
+    void internal_flush();
+
     // Writes a file back to disk, freeing its buffer space. Returns if the
     // object id is inside the buffer.
     bool write_back(Key const& key);
