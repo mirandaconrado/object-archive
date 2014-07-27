@@ -38,48 +38,20 @@ SOFTWARE.
 #include <boost/filesystem.hpp>
 
 template <class Key>
-ObjectArchive<Key>::ObjectArchive(std::string const& filename,
-    size_t max_buffer_size):
+ObjectArchive<Key>::ObjectArchive():
   must_rebuild_file_(false),
-  max_buffer_size_(max_buffer_size),
+  max_buffer_size_(0),
   buffer_size_(0) {
-    init(filename);
-}
-
-template <class Key>
-ObjectArchive<Key>::ObjectArchive(std::string const& filename,
-    std::string const& max_buffer_size):
-  ObjectArchive(filename, 0) {
-    size_t length = max_buffer_size.size();
-    double buffer_size = atof(max_buffer_size.c_str());
-
-    bool changed = false;
-    for (size_t i = 0; i< length && !changed; i++) {
-      switch (max_buffer_size[i]) {
-        case 'k':
-        case 'K':
-          buffer_size *= 1e3;
-          changed = true;
-          break;
-        case 'm':
-        case 'M':
-          buffer_size *= 1e6;
-          changed = true;
-          break;
-        case 'g':
-        case 'G':
-          buffer_size *= 1e9;
-          changed = true;
-          break;
-      }
-    }
-
-    max_buffer_size_ = buffer_size;
+    init();
+    set_buffer_size(0);
 }
 
 template <class Key>
 ObjectArchive<Key>::~ObjectArchive() {
   flush();
+  stream_.close();
+  if (temporary_file_)
+    boost::filesystem::remove(filename_);
 }
 
 template <class Key>
@@ -103,10 +75,27 @@ Key ObjectArchive<Key>::deserialize_key(std::string const& key_string) {
 }
 
 template <class Key>
+void ObjectArchive<Key>::init() {
+  std::string filename;
+  filename = boost::filesystem::temp_directory_path().string();
+  filename += '/';
+  filename += boost::filesystem::unique_path().string();
+
+  init(filename);
+
+  temporary_file_ = true;
+}
+
+template <class Key>
 void ObjectArchive<Key>::init(std::string const& filename) {
   flush();
 
+  stream_.close();
+  if (temporary_file_)
+    boost::filesystem::remove(filename_);
+
   filename_ = filename;
+  temporary_file_ = false;
 
   buffer_size_ = 0;
   objects_.clear();
@@ -147,6 +136,41 @@ void ObjectArchive<Key>::init(std::string const& filename) {
     stream_.open(filename, std::ios_base::in | std::ios_base::out |
         std::ios_base::binary | std::ios_base::trunc);
   }
+}
+
+template <class Key>
+void ObjectArchive<Key>::set_buffer_size(size_t max_buffer_size) {
+  unload(max_buffer_size);
+  max_buffer_size_ = max_buffer_size;
+}
+
+template <class Key>
+void ObjectArchive<Key>::set_buffer_size(std::string const& max_buffer_size) {
+  size_t length = max_buffer_size.size();
+  double buffer_size = atof(max_buffer_size.c_str());
+
+  bool changed = false;
+  for (size_t i = 0; i< length && !changed; i++) {
+    switch (max_buffer_size[i]) {
+      case 'k':
+      case 'K':
+        buffer_size *= 1e3;
+        changed = true;
+        break;
+      case 'm':
+      case 'M':
+        buffer_size *= 1e6;
+        changed = true;
+        break;
+      case 'g':
+      case 'G':
+        buffer_size *= 1e9;
+        changed = true;
+        break;
+    }
+  }
+
+  set_buffer_size(buffer_size);
 }
 
 template <class Key>

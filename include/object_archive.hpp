@@ -67,15 +67,9 @@ SOFTWARE.
 template <class Key>
 class ObjectArchive {
   public:
-    // Loads the archive at the given path and associates the maximum buffer
-    // size. If the archive doesn't exist, create it.
-    ObjectArchive(std::string const& filename, size_t max_buffer_size);
-
-    // Same as the other constructor, but the string holds the number of bytes
-    // for the buffer, possibly with modifiers K, M or G. If more than one
-    // modifier is found, then the first one is used.
-    ObjectArchive(std::string const& filename,
-        std::string const& max_buffer_size);
+    // Creates an archive with a temporary file as backend, which is deleted on
+    // destruction. To use a permanent record, call the method init().
+    ObjectArchive();
 
     // Unloads the buffer using method flush().
     ~ObjectArchive();
@@ -84,8 +78,20 @@ class ObjectArchive {
     static std::string serialize_key(Key const& key);
     static Key deserialize_key(std::string const& key_string);
 
+    // Initializes the archive using a temporary file as backend. As the names
+    // are random, it's possible to have a collision!
+    void init();
+
     // Initializes the archive using a new file as backend.
     void init(std::string const& filename);
+
+    // Resets the buffer size to a certain number of bytes.
+    void set_buffer_size(size_t max_buffer_size);
+
+    // Same as the other, but the string holds the number of bytes for the
+    // buffer, possibly with modifiers K, M or G. If more than one modifier is
+    // found, then the first one is used.
+    void set_buffer_size(std::string const& max_buffer_size);
 
     // Removes an object entry if it's present.
     void remove(Key const& key);
@@ -163,14 +169,14 @@ class ObjectArchive {
 
     std::list<ObjectEntry const*> LRU_; // Most recent elements are on the front
 
-    std::string filename_;
-
     // Inserting or removing files changes the header and it must be rebuilt
     bool must_rebuild_file_;
 
     size_t max_buffer_size_, // Argument provided at creation
       buffer_size_; // Current buffer size
 
+    std::string filename_;
+    bool temporary_file_;
     std::fstream stream_;
 };
 
