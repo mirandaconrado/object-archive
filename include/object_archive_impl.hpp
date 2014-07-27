@@ -44,9 +44,6 @@ ObjectArchive<Key>::ObjectArchive(std::string const& filename,
   max_buffer_size_(max_buffer_size),
   buffer_size_(0) {
     init(filename);
-
-    if (max_buffer_size_ < 1)
-      max_buffer_size_ = 1;
 }
 
 template <class Key>
@@ -78,9 +75,6 @@ ObjectArchive<Key>::ObjectArchive(std::string const& filename,
     }
 
     max_buffer_size_ = buffer_size;
-
-    if (max_buffer_size_ < 1)
-      max_buffer_size_ = 1;
 }
 
 template <class Key>

@@ -68,8 +68,7 @@ template <class Key>
 class ObjectArchive {
   public:
     // Loads the archive at the given path and associates the maximum buffer
-    // size. If the archive doesn't exist, create it. The minimum buffer size
-    // allowed is 1 byte, which is forced if 0 is given.
+    // size. If the archive doesn't exist, create it.
     ObjectArchive(std::string const& filename, size_t max_buffer_size);
 
     // Same as the other constructor, but the string holds the number of bytes
