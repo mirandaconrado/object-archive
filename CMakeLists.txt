@@ -2,8 +2,9 @@ cmake_minimum_required(VERSION 2.6)
 project(object-archive)
 
 find_package(GTest REQUIRED)
-find_package(Boost REQUIRED COMPONENTS filesystem serialization system)
+find_package(Boost 1.55.0 REQUIRED COMPONENTS filesystem serialization system)
 
+set(CMAKE_CXX_COMPILER "clang++")
 include_directories(include)
 include_directories(${Boost_INCLUDE_DIRS})
 

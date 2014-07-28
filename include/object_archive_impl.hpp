@@ -173,6 +173,19 @@ void ObjectArchive<Key>::set_buffer_size(std::string const& max_buffer_size) {
   set_buffer_size(buffer_size);
 }
 
+#if BOOST_OS_LINUX
+#include <sys/sysinfo.h>
+
+template <class Key>
+void ObjectArchive<Key>::set_buffer_size_scale(float max_buffer_size) {
+  struct sysinfo info;
+  if (sysinfo(&info) == 0) {
+    unsigned long freeram = info.freeram;
+    set_buffer_size(freeram * max_buffer_size);
+  }
+}
+#endif
+
 template <class Key>
 void ObjectArchive<Key>::remove(Key const& key) {
   auto it = objects_.find(key);

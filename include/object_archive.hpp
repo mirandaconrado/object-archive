@@ -65,6 +65,7 @@ SOFTWARE.
 
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
+#include <boost/predef.h>
 #include <fstream>
 #include <functional>
 #include <list>
@@ -99,6 +100,12 @@ class ObjectArchive {
     // buffer, possibly with modifiers K, M or G. If more than one modifier is
     // found, then the first one is used.
     void set_buffer_size(std::string const& max_buffer_size);
+
+#if BOOST_OS_LINUX
+    // Sets the buffer size to a percentage of the FREE memory available in the
+    // system. Currently only Linux is supported.
+    void set_buffer_size_scale(float max_buffer_size);
+#endif
 
     // Removes an object entry if it's present.
     void remove(Key const& key);
