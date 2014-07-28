@@ -187,6 +187,16 @@ void ObjectArchive<Key>::set_buffer_size_scale(float max_buffer_size) {
 #endif
 
 template <class Key>
+size_t ObjectArchive<Key>::get_max_buffer_size() const {
+  return max_buffer_size_;
+}
+
+template <class Key>
+size_t ObjectArchive<Key>::get_buffer_size() const {
+  return buffer_size_;
+}
+
+template <class Key>
 void ObjectArchive<Key>::remove(Key const& key) {
   auto it = objects_.find(key);
   if (it == objects_.end())

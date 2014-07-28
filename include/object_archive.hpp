@@ -107,6 +107,10 @@ class ObjectArchive {
     void set_buffer_size_scale(float max_buffer_size);
 #endif
 
+    // Provides information about the maximum and current buffer sizes.
+    size_t get_max_buffer_size() const;
+    size_t get_buffer_size() const;
+
     // Removes an object entry if it's present.
     void remove(Key const& key);
 

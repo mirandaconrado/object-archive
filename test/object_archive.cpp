@@ -45,6 +45,9 @@ TEST_F(ObjectArchiveTest, Empty) {
   {
     ObjectArchive<size_t> ar;
     ar.init(filename.string());
+
+    EXPECT_EQ(0, ar.get_buffer_size());
+    EXPECT_EQ(0, ar.get_max_buffer_size());
   }
 
   std::fstream fs(filename.string(),
@@ -59,6 +62,8 @@ TEST_F(ObjectArchiveTest, StringConstructor) {
     ObjectArchive<size_t> ar;
     ar.init(filename.string());
     ar.set_buffer_size("0.05k");
+    EXPECT_EQ(0, ar.get_buffer_size());
+    EXPECT_EQ(50, ar.get_max_buffer_size());
 
     size_t id;
     std::string val;
