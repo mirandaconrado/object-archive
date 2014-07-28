@@ -282,7 +282,7 @@ size_t ObjectArchive<Key>::load_raw(Key const& key, std::string& data,
   // If the result isn't in the buffer, we must read it.
   if (entry.data.size() == 0) {
     // Only check for size if we have to load.
-    if (size + buffer_size_ > max_buffer_size_)
+    if (size + buffer_size_ > max_buffer_size_ && keep_in_buffer)
       unload(max_buffer_size_ - size);
 
     stream_.seekg(entry.index_in_file);
