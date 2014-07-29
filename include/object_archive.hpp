@@ -82,9 +82,9 @@ class ObjectArchive {
     // Unloads the buffer using method flush().
     ~ObjectArchive();
 
-    // Passes the key through boost serialize, making it easier to store/load.
-    static std::string serialize_key(Key const& key);
-    static Key deserialize_key(std::string const& key_string);
+    // Passes an object through boost serialize, making it easier to handle.
+    template <class T> static std::string serialize(T const& val);
+    template <class T> static void deserialize(std::string const& str, T& val);
 
     // Initializes the archive using a temporary file as backend. As the names
     // are random, it's possible to have a collision!

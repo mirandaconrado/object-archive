@@ -80,8 +80,8 @@ TEST_F(ObjectArchiveTest, StringConstructor) {
   size_t total_size = 0;
   total_size += sizeof(size_t)*(1+2*2);
   total_size += s1+s2;
-  total_size += ObjectArchive<size_t>::serialize_key(0).size();
-  total_size += ObjectArchive<size_t>::serialize_key(2).size();
+  total_size += ObjectArchive<size_t>::serialize((size_t)0).size();
+  total_size += ObjectArchive<size_t>::serialize((size_t)2).size();
   EXPECT_EQ(total_size, fs.tellp());
 }
 
@@ -107,8 +107,8 @@ TEST_F(ObjectArchiveTest, Insert) {
   size_t total_size = 0;
   total_size += sizeof(size_t)*(1+2*2);
   total_size += s1+s2;
-  total_size += ObjectArchive<size_t>::serialize_key(0).size();
-  total_size += ObjectArchive<size_t>::serialize_key(2).size();
+  total_size += ObjectArchive<size_t>::serialize((size_t)0).size();
+  total_size += ObjectArchive<size_t>::serialize((size_t)2).size();
   EXPECT_EQ(total_size, fs.tellp());
 }
 
@@ -134,7 +134,7 @@ TEST_F(ObjectArchiveTest, InsertOverwrite) {
   size_t total_size = 0;
   total_size += sizeof(size_t)*(1+1*2);
   total_size += s1;
-  total_size += ObjectArchive<size_t>::serialize_key(0).size();
+  total_size += ObjectArchive<size_t>::serialize((size_t)0).size();
   EXPECT_EQ(total_size, fs.tellp());
 }
 
@@ -159,7 +159,7 @@ TEST_F(ObjectArchiveTest, InsertOverwriteReopen) {
     size_t total_size = 0;
     total_size += sizeof(size_t)*(1+1*2);
     total_size += s1;
-    total_size += ObjectArchive<size_t>::serialize_key(0).size();
+    total_size += ObjectArchive<size_t>::serialize((size_t)0).size();
     EXPECT_EQ(total_size, fs.tellp());
   }
 
@@ -185,7 +185,7 @@ TEST_F(ObjectArchiveTest, InsertOverwriteReopen) {
     size_t total_size = 0;
     total_size += sizeof(size_t)*(1+1*2);
     total_size += s1;
-    total_size += ObjectArchive<size_t>::serialize_key(0).size();
+    total_size += ObjectArchive<size_t>::serialize((size_t)0).size();
     EXPECT_EQ(total_size, fs.tellp());
   }
 
@@ -225,8 +225,8 @@ TEST_F(ObjectArchiveTest, InsertSmallBuffer) {
   total_size += sizeof(size_t)*(1+2*2);
   total_size += s1;
   total_size += s2;
-  total_size += ObjectArchive<size_t>::serialize_key(0).size();
-  total_size += ObjectArchive<size_t>::serialize_key(2).size();
+  total_size += ObjectArchive<size_t>::serialize((size_t)0).size();
+  total_size += ObjectArchive<size_t>::serialize((size_t)2).size();
   EXPECT_EQ(total_size, fs.tellp());
 }
 
@@ -250,7 +250,7 @@ TEST_F(ObjectArchiveTest, InsertTooLarge) {
   size_t total_size = 0;
   total_size += sizeof(size_t)*(1+1*2);
   total_size += s1;
-  total_size += ObjectArchive<size_t>::serialize_key(0).size();
+  total_size += ObjectArchive<size_t>::serialize((size_t)0).size();
   EXPECT_EQ(total_size, fs.tellp());
 }
 
@@ -303,8 +303,8 @@ TEST_F(ObjectArchiveTest, Remove) {
     total_size += sizeof(size_t)*(1+2*2);
     total_size += s1;
     total_size += s2;
-    total_size += ObjectArchive<size_t>::serialize_key(0).size();
-    total_size += ObjectArchive<size_t>::serialize_key(2).size();
+    total_size += ObjectArchive<size_t>::serialize((size_t)0).size();
+    total_size += ObjectArchive<size_t>::serialize((size_t)2).size();
     EXPECT_EQ(total_size, fs.tellp());
   }
 
@@ -324,7 +324,7 @@ TEST_F(ObjectArchiveTest, Remove) {
     size_t total_size = 0;
     total_size += sizeof(size_t)*(1+1*2);
     total_size += s2;
-    total_size += ObjectArchive<size_t>::serialize_key(2).size();
+    total_size += ObjectArchive<size_t>::serialize((size_t)2).size();
     EXPECT_EQ(total_size, fs.tellp());
   }
 
@@ -423,8 +423,8 @@ TEST_F(ObjectArchiveTest, DontKeepInBuffer) {
   total_size += sizeof(size_t)*(1+2*2);
   total_size += s1;
   total_size += s2;
-  total_size += ObjectArchive<size_t>::serialize_key(0).size();
-  total_size += ObjectArchive<size_t>::serialize_key(2).size();
+  total_size += ObjectArchive<size_t>::serialize((size_t)0).size();
+  total_size += ObjectArchive<size_t>::serialize((size_t)2).size();
   EXPECT_EQ(total_size, fs.tellp());
 
   {
@@ -504,8 +504,8 @@ TEST_F(ObjectArchiveTest, Clear) {
     size_t total_size = 0;
     total_size += sizeof(size_t)*(1+2*2);
     total_size += s1+s2;
-    total_size += ObjectArchive<size_t>::serialize_key(0).size();
-    total_size += ObjectArchive<size_t>::serialize_key(2).size();
+    total_size += ObjectArchive<size_t>::serialize((size_t)0).size();
+    total_size += ObjectArchive<size_t>::serialize((size_t)2).size();
     EXPECT_EQ(total_size, fs.tellp());
   }
 
