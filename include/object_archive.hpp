@@ -166,6 +166,10 @@ class ObjectArchive {
     void clear();
 
   private:
+    // Not implemented
+    ObjectArchive(ObjectArchive const& other);
+    ObjectArchive const& operator=(ObjectArchive const& other);
+
     // Same as external flush, but the archive can't be used anymore.
     void internal_flush();
 
