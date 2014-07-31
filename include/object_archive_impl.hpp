@@ -41,7 +41,8 @@ template <class Key>
 ObjectArchive<Key>::ObjectArchive():
   must_rebuild_file_(false),
   max_buffer_size_(0),
-  buffer_size_(0) {
+  buffer_size_(0),
+  temporary_file_(false) {
     init();
     set_buffer_size(0);
 }
