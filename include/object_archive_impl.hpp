@@ -365,7 +365,9 @@ void ObjectArchive<Key>::internal_flush() {
   size_t n_entries = objects_.size();
   temp_stream.write((char*)&n_entries, sizeof(size_t));
 
-  char* temp_buffer = new char[max_buffer_size_];
+  size_t local_max_buffer_size = (max_buffer_size_ == 0 ? 1 : max_buffer_size_);
+
+  char* temp_buffer = new char[local_max_buffer_size];
 
   for (auto& it : objects_) {
     ObjectEntry& entry = it.second;
@@ -385,10 +387,10 @@ void ObjectArchive<Key>::internal_flush() {
 
     // Only uses the allowed buffer memory.
     for (;
-         size > max_buffer_size_;
-         size -= max_buffer_size_) {
-      stream_.read(temp_buffer, max_buffer_size_);
-      temp_stream.write(temp_buffer, max_buffer_size_);
+         size > local_max_buffer_size;
+         size -= local_max_buffer_size) {
+      stream_.read(temp_buffer, local_max_buffer_size);
+      temp_stream.write(temp_buffer, local_max_buffer_size);
     }
     stream_.read(temp_buffer, size);
     temp_stream.write(temp_buffer, size);
