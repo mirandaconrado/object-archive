@@ -225,10 +225,7 @@ template <class Key>
 template <class T>
 size_t ObjectArchive<Key>::insert(Key const& key, T const& obj,
     bool keep_in_buffer) {
-  std::stringstream stream;
-  boost::archive::binary_oarchive ofs(stream);
-  ofs << obj;
-  return insert_raw(key, stream.str(), keep_in_buffer);
+  return insert_raw(key, serialize(obj), keep_in_buffer);
 }
 
 template <class Key>
@@ -271,9 +268,7 @@ size_t ObjectArchive<Key>::load(Key const& key, T& obj, bool keep_in_buffer) {
   std::string s;
   size_t ret = load_raw(key, s, keep_in_buffer);
   if (ret == 0) return 0;
-  std::stringstream stream(s);
-  boost::archive::binary_iarchive ifs(stream);
-  ifs >> obj;
+  deserialize(s, obj);
   return ret;
 }
 
