@@ -66,6 +66,17 @@ std::string ObjectArchive<Key>::serialize(T const& val) {
 }
 
 template <class Key>
+template <class T1, class T2>
+std::string ObjectArchive<Key>::serialize(T2 const& val) {
+  std::stringstream stream;
+  boost::archive::binary_oarchive ofs(stream);
+  ofs.register_type<T1>();
+  ofs << val;
+
+  return stream.str();
+}
+
+template <class Key>
 template <class T>
 void ObjectArchive<Key>::deserialize(std::string const& str, T& val) {
   std::stringstream stream(str);

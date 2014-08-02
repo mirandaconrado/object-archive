@@ -86,6 +86,13 @@ class ObjectArchive {
     template <class T> static std::string serialize(T const& val);
     template <class T> static void deserialize(std::string const& str, T& val);
 
+    // If trying to serialize a pointer of a Base class, that has virtual
+    // methods, poiting to a Derived object, serialization fails because it
+    // doesn't recognize the type. In this case, this method deals with this.
+    // Calls like serialize<Derived>(value);
+    template <class T1, class T2>
+    static std::string serialize(T2 const& val);
+
     // Initializes the archive using a temporary file as backend. As the names
     // are random, it's possible to have a collision!
     void init();
