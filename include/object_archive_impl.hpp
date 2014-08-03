@@ -421,6 +421,7 @@ bool ObjectArchive<Key>::write_back(Key const& key) {
   ObjectEntry& entry = it->second;
 
   if (entry.modified) {
+    stream_.seekp(0, std::ios_base::end);
     entry.index_in_file = stream_.tellp();
     stream_.write((char*)&entry.data[0], entry.size);
     entry.modified = false;
