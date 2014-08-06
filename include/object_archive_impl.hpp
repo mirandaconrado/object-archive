@@ -36,6 +36,8 @@ SOFTWARE.
 
 #include <algorithm>
 #include <boost/filesystem.hpp>
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/iostreams/filter/zlib.hpp>
 
 template <class Key>
 ObjectArchive<Key>::ObjectArchive():
@@ -59,8 +61,13 @@ template <class Key>
 template <class T>
 std::string ObjectArchive<Key>::serialize(T const& val) {
   std::stringstream stream;
-  boost::archive::binary_oarchive ofs(stream);
-  ofs << val;
+  {
+    boost::iostreams::filtering_stream<boost::iostreams::output> filtering;
+    filtering.push(boost::iostreams::zlib_compressor());
+    filtering.push(stream);
+    boost::archive::binary_oarchive ofs(filtering);
+    ofs << val;
+  }
 
   return stream.str();
 }
@@ -69,9 +76,14 @@ template <class Key>
 template <class T1, class T2>
 std::string ObjectArchive<Key>::serialize(T2 const& val) {
   std::stringstream stream;
-  boost::archive::binary_oarchive ofs(stream);
-  ofs.register_type<T1>();
-  ofs << val;
+  {
+    boost::iostreams::filtering_stream<boost::iostreams::output> filtering;
+    filtering.push(boost::iostreams::zlib_compressor());
+    filtering.push(stream);
+    boost::archive::binary_oarchive ofs(filtering);
+    ofs.register_type<T1>();
+    ofs << val;
+  }
 
   return stream.str();
 }
@@ -80,7 +92,10 @@ template <class Key>
 template <class T>
 void ObjectArchive<Key>::deserialize(std::string const& str, T& val) {
   std::stringstream stream(str);
-  boost::archive::binary_iarchive ifs(stream);
+  boost::iostreams::filtering_stream<boost::iostreams::input> filtering;
+  filtering.push(boost::iostreams::zlib_decompressor());
+  filtering.push(stream);
+  boost::archive::binary_iarchive ifs(filtering);
 
   ifs >> val;
 }
