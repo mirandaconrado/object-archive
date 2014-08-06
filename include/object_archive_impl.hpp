@@ -51,7 +51,8 @@ ObjectArchive<Key>::ObjectArchive():
 
 template <class Key>
 ObjectArchive<Key>::~ObjectArchive() {
-  internal_flush();
+  if (!temporary_file_)
+    internal_flush();
   stream_.close();
   if (temporary_file_)
     boost::filesystem::remove(filename_);
