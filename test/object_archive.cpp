@@ -273,10 +273,10 @@ TEST_F(ObjectArchiveTest, Reopen) {
   ar.set_buffer_size(100);
 
   auto available = ar.available_objects();
-  if (**available.begin() == 0)
-    EXPECT_EQ(2, **++available.begin());
-  else if (**available.begin() == 2)
-    EXPECT_EQ(0, **++available.begin());
+  if (*available.begin() == 0)
+    EXPECT_EQ(2, *++available.begin());
+  else if (*available.begin() == 2)
+    EXPECT_EQ(0, *++available.begin());
 }
 
 TEST_F(ObjectArchiveTest, Remove) {
@@ -333,7 +333,7 @@ TEST_F(ObjectArchiveTest, Remove) {
   ar.set_buffer_size(2);
 
   auto available = ar.available_objects();
-  EXPECT_EQ(2, **available.begin());
+  EXPECT_EQ(2, *available.begin());
 }
 
 TEST_F(ObjectArchiveTest, Load) {

@@ -66,6 +66,9 @@ SOFTWARE.
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/predef.h>
+#if ENABLE_THREADS
+#include <boost/thread.hpp>
+#endif
 #include <fstream>
 #include <functional>
 #include <list>
@@ -98,7 +101,7 @@ class ObjectArchive {
     void init();
 
     // Initializes the archive using a new file as backend.
-    void init(std::string const& filename);
+    void init(std::string const& filename, bool temporary_file = false);
 
     // Resets the buffer size to a certain number of bytes.
     void set_buffer_size(size_t max_buffer_size);
@@ -162,7 +165,7 @@ class ObjectArchive {
     bool is_available(Key const& key) const;
 
     // Gets a list of all the results stored in this archive.
-    std::list<Key const*> available_objects() const;
+    std::list<Key> available_objects();
 
     // Flushs the archive, guaranteeing that the data is saved to a file, which
     // can be used later or continue to be used. The buffer is empty after this
@@ -210,6 +213,10 @@ class ObjectArchive {
     std::string filename_;
     bool temporary_file_;
     std::fstream stream_;
+
+#if ENABLE_THREADS
+    boost::recursive_mutex mutex_;
+#endif
 };
 
 #include "object_archive_impl.hpp"

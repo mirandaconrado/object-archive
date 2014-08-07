@@ -39,6 +39,13 @@ SOFTWARE.
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/zlib.hpp>
 
+#if ENABLE_THREADS
+#define OBJECT_ARCHIVE_MUTEX_GUARD \
+  boost::lock_guard<boost::recursive_mutex> __mutex_guard(mutex_)
+#else
+#define OBJECT_ARCHIVE_MUTEX_GUARD do { } while(0)
+#endif
+
 template <class Key>
 ObjectArchive<Key>::ObjectArchive():
   must_rebuild_file_(false),
@@ -51,6 +58,8 @@ ObjectArchive<Key>::ObjectArchive():
 
 template <class Key>
 ObjectArchive<Key>::~ObjectArchive() {
+  OBJECT_ARCHIVE_MUTEX_GUARD;
+
   if (!temporary_file_)
     internal_flush();
   stream_.close();
@@ -108,13 +117,14 @@ void ObjectArchive<Key>::init() {
   filename += '/';
   filename += boost::filesystem::unique_path().string();
 
-  init(filename);
-
-  temporary_file_ = true;
+  init(filename, true);
 }
 
 template <class Key>
-void ObjectArchive<Key>::init(std::string const& filename) {
+void ObjectArchive<Key>::init(std::string const& filename,
+    bool temporary_file) {
+  OBJECT_ARCHIVE_MUTEX_GUARD;
+
   internal_flush();
 
   stream_.close();
@@ -122,7 +132,7 @@ void ObjectArchive<Key>::init(std::string const& filename) {
     boost::filesystem::remove(filename_);
 
   filename_ = filename;
-  temporary_file_ = false;
+  temporary_file_ = temporary_file;
 
   buffer_size_ = 0;
   objects_.clear();
@@ -167,8 +177,8 @@ void ObjectArchive<Key>::init(std::string const& filename) {
 
 template <class Key>
 void ObjectArchive<Key>::set_buffer_size(size_t max_buffer_size) {
-  unload(max_buffer_size);
   max_buffer_size_ = max_buffer_size;
+  unload(max_buffer_size);
 }
 
 template <class Key>
@@ -225,6 +235,11 @@ size_t ObjectArchive<Key>::get_buffer_size() const {
 
 template <class Key>
 void ObjectArchive<Key>::remove(Key const& key) {
+  if (!is_available(key))
+    return;
+
+  OBJECT_ARCHIVE_MUTEX_GUARD;
+
   auto it = objects_.find(key);
   if (it == objects_.end())
     return;
@@ -262,6 +277,8 @@ size_t ObjectArchive<Key>::insert_raw(Key const& key, std::string&& data,
   if (size + buffer_size_ > max_buffer_size_ && keep_in_buffer)
     unload(max_buffer_size_ - size);
 
+  OBJECT_ARCHIVE_MUTEX_GUARD;
+
   buffer_size_ += size;
 
   ObjectEntry& entry = objects_[key];
@@ -291,6 +308,11 @@ size_t ObjectArchive<Key>::load(Key const& key, T& obj, bool keep_in_buffer) {
 template <class Key>
 size_t ObjectArchive<Key>::load_raw(Key const& key, std::string& data,
     bool keep_in_buffer) {
+  if (!is_available(key))
+    return 0;
+
+  OBJECT_ARCHIVE_MUTEX_GUARD;
+
   auto it = objects_.find(key);
   if (it == objects_.end())
     return 0;
@@ -334,34 +356,41 @@ size_t ObjectArchive<Key>::load_raw(Key const& key, std::string& data,
 
 template <class Key>
 void ObjectArchive<Key>::unload(size_t desired_size) {
+  OBJECT_ARCHIVE_MUTEX_GUARD;
   while (buffer_size_ > desired_size)
     write_back(LRU_.back()->key);
 }
 
 template <class Key>
 bool ObjectArchive<Key>::is_available(Key const& key) const {
-  if (objects_.find(key) == objects_.end())
+  if (objects_.count(key) == 0)
     return false;
   return true;
 }
 
 template <class Key>
-std::list<Key const*> ObjectArchive<Key>::available_objects() const {
-  std::list<Key const*> list;
+std::list<Key> ObjectArchive<Key>::available_objects() {
+  std::list<Key> list;
+
+  OBJECT_ARCHIVE_MUTEX_GUARD;
   for (auto& it : objects_)
-    list.push_front(&it.second.key);
+    list.push_front(it.second.key);
 
   return list;
 }
 
 template <class Key>
 void ObjectArchive<Key>::flush() {
+  OBJECT_ARCHIVE_MUTEX_GUARD;
+
   internal_flush();
   init(filename_);
 }
 
 template <class Key>
 void ObjectArchive<Key>::clear() {
+  OBJECT_ARCHIVE_MUTEX_GUARD;
+
   objects_.clear();
   LRU_.clear();
   must_rebuild_file_ = true;
