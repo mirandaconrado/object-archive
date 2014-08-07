@@ -35,3 +35,9 @@ ar.load("filename", filedata);
 ar.remove("filename");
 [filedata keeps its value]
 ```
+
+Threading
+---------
+
+If the archive will be used by multiple threads, ENABLE_THREADS should be set
+during compilation.

@@ -48,6 +48,9 @@ SOFTWARE.
 // Note: the maximum buffer size provided isn't the maximum size that will
 // actually be used, as there is an overhead for bookkeeping.
 //
+// Threading support: to allow the archive to be used by multiple threads, set
+// ENABLE_THREADS. This should place mutex at the right places for consistency.
+//
 // Example:
 // ObjectArchive<std::string> ar;
 // ar.init("path/to/file");
@@ -100,7 +103,8 @@ class ObjectArchive {
     // are random, it's possible to have a collision!
     void init();
 
-    // Initializes the archive using a new file as backend.
+    // Initializes the archive using a new file as backend. If the file is
+    // temporary, it's deleted during destruction.
     void init(std::string const& filename, bool temporary_file = false);
 
     // Resets the buffer size to a certain number of bytes.
