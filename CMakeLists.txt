@@ -2,7 +2,13 @@ cmake_minimum_required(VERSION 2.6)
 project(object-archive)
 
 find_package(GTest REQUIRED)
-find_package(Boost 1.55.0 REQUIRED COMPONENTS filesystem iostreams serialization system)
+
+if(ENABLE_THREADS)
+  find_package(Boost 1.55.0 REQUIRED COMPONENTS filesystem iostreams serialization system thread)
+  add_definitions(-DENABLE_THREADS)
+else()
+  find_package(Boost 1.55.0 REQUIRED COMPONENTS filesystem iostreams serialization system)
+endif()
 
 set(CMAKE_CXX_COMPILER "clang++")
 include_directories(include)
