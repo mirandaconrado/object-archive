@@ -362,7 +362,8 @@ void ObjectArchive<Key>::unload(size_t desired_size) {
 }
 
 template <class Key>
-bool ObjectArchive<Key>::is_available(Key const& key) const {
+bool ObjectArchive<Key>::is_available(Key const& key) {
+  OBJECT_ARCHIVE_MUTEX_GUARD;
   if (objects_.count(key) == 0)
     return false;
   return true;

@@ -162,7 +162,7 @@ class ObjectArchive {
     void unload(size_t desired_size = 0);
 
     // Checks if there exists an object with this key.
-    bool is_available(Key const& key) const;
+    bool is_available(Key const& key);
 
     // Gets a list of all the results stored in this archive.
     std::list<Key> available_objects();
