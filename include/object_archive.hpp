@@ -48,6 +48,9 @@ SOFTWARE.
 // Note: the maximum buffer size provided isn't the maximum size that will
 // actually be used, as there is an overhead for bookkeeping.
 //
+// Threading support: to allow the archive to be used by multiple threads, set
+// ENABLE_THREADS. This should place mutex at the right places for consistency.
+//
 // Example:
 // ObjectArchive<std::string> ar;
 // ar.init("path/to/file");
@@ -66,6 +69,9 @@ SOFTWARE.
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/predef.h>
+#if ENABLE_THREADS
+#include <boost/thread.hpp>
+#endif
 #include <fstream>
 #include <functional>
 #include <list>
@@ -97,8 +103,9 @@ class ObjectArchive {
     // are random, it's possible to have a collision!
     void init();
 
-    // Initializes the archive using a new file as backend.
-    void init(std::string const& filename);
+    // Initializes the archive using a new file as backend. If the file is
+    // temporary, it's deleted during destruction.
+    void init(std::string const& filename, bool temporary_file = false);
 
     // Resets the buffer size to a certain number of bytes.
     void set_buffer_size(size_t max_buffer_size);
@@ -159,10 +166,10 @@ class ObjectArchive {
     void unload(size_t desired_size = 0);
 
     // Checks if there exists an object with this key.
-    bool is_available(Key const& key) const;
+    bool is_available(Key const& key);
 
     // Gets a list of all the results stored in this archive.
-    std::list<Key const*> available_objects() const;
+    std::list<Key> available_objects();
 
     // Flushs the archive, guaranteeing that the data is saved to a file, which
     // can be used later or continue to be used. The buffer is empty after this
@@ -210,6 +217,10 @@ class ObjectArchive {
     std::string filename_;
     bool temporary_file_;
     std::fstream stream_;
+
+#if ENABLE_THREADS
+    boost::recursive_mutex mutex_;
+#endif
 };
 
 #include "object_archive_impl.hpp"
