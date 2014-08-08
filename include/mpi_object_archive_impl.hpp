@@ -173,6 +173,8 @@ void MPIObjectArchive<Key>::mpi_process() {
 
         response_req.wait();
       }
+      else
+        stop = true;
     }
     else
       stop = true;
