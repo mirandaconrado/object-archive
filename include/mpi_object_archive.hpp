@@ -78,6 +78,9 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     template <class T>
     void broadcast_others(int tag, T const& val, bool check_alive = true);
 
+    template <class T>
+    boost::mpi::status non_blocking_recv(int source, int tag, T& value);
+
     Tags tags_;
     boost::mpi::communicator* world_;
     bool record_everything_;

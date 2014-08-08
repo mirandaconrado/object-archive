@@ -94,14 +94,14 @@ size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
 
     while (n_waiting_response > 0) {
       Response response;
-      boost::mpi::status status = world_->recv(boost::mpi::any_source,
+      boost::mpi::status status = non_blocking_recv(boost::mpi::any_source,
           tags_.response, response);
 
       if (response.key != key)
         continue;
 
       if (response.found) {
-        world_->recv(status.source(), tags_.response_data, data);
+        non_blocking_recv(status.source(), tags_.response_data, data);
         ObjectArchive<Key>::insert_raw(key, data, true);
         size = ObjectArchive<Key>::load_raw(key, data, keep_in_buffer);
         return size;
@@ -138,20 +138,23 @@ void MPIObjectArchive<Key>::mpi_process() {
         world_->recv(status.source(), status.tag(), key);
         ObjectArchive<Key>::remove(key);
       }
-      else if (status.tag() == tags_.inserted && record_everything_) {
+      else if (status.tag() == tags_.inserted) {
         Key key;
         world_->recv(status.source(), status.tag(), key);
-        world_->send(status.source(), tags_.request, key);
 
-        Response response;
-        do {
-          world_->recv(status.source(), tags_.response, response);
-        } while (response.key != key);
+        if (record_everything_) {
+          world_->send(status.source(), tags_.request, key);
 
-        if (response.found) {
-          std::string data;
-          world_->recv(status.source(), tags_.response_data, data);
-          ObjectArchive<Key>::insert_raw(key, data, false);
+          Response response;
+          do {
+            non_blocking_recv(status.source(), tags_.response, response);
+          } while (response.key != key);
+
+          if (response.found) {
+            std::string data;
+            non_blocking_recv(status.source(), tags_.response_data, data);
+            ObjectArchive<Key>::insert_raw(key, data, false);
+          }
         }
       }
       else if (status.tag() == tags_.request) {
@@ -191,6 +194,17 @@ void MPIObjectArchive<Key>::broadcast_others(int tag, T const& val,
       reqs[i] = world_->isend(i, tag, val);
 
   boost::mpi::wait_all(reqs.begin(), reqs.end());
+}
+
+template <class Key>
+template <class T>
+boost::mpi::status MPIObjectArchive<Key>::non_blocking_recv(int source, int tag,
+    T& value) {
+  boost::mpi::request req = world_->irecv(source, tag, value);
+  while (!req.test())
+    mpi_process();
+
+  return req.test().get();
 }
 
 #endif
