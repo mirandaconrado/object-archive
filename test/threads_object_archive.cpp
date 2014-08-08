@@ -28,7 +28,7 @@ SOFTWARE.
 
 #include <boost/thread.hpp>
 
-class ObjectArchiveThreadsTest: public ::testing::Test {
+class ThreadsObjectArchiveTest: public ::testing::Test {
   protected:
     boost::filesystem::path filename;
 
@@ -57,7 +57,7 @@ void worker(ObjectArchive<size_t>* ar, bool odd) {
   }
 }
 
-TEST_F(ObjectArchiveThreadsTest, InsertLoad) {
+TEST_F(ThreadsObjectArchiveTest, InsertLoad) {
   ObjectArchive<size_t> ar;
 
   boost::thread t1(worker, &ar, true);
