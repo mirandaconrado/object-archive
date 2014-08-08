@@ -88,8 +88,8 @@ size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
 
     int n_waiting_response = world_->size();
 
-    for (auto it : alive_)
-      if (!it)
+    for (int i = 0; i < alive_.size(); i++)
+      if (!alive_[i])
         n_waiting_response--;
 
     while (n_waiting_response > 0) {
@@ -188,7 +188,7 @@ void MPIObjectArchive<Key>::broadcast_others(int tag, T const& val,
   std::vector<boost::mpi::request> reqs(world_->size());
   for (int i = 0; i < world_->size(); i++)
     if (alive_[i] || (!check_alive && i != world_->rank()))
-      reqs[i] = world_->isend(i, tags_.invalidated, val);
+      reqs[i] = world_->isend(i, tag, val);
 
   boost::mpi::wait_all(reqs.begin(), reqs.end());
 }
