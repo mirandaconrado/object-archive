@@ -86,7 +86,7 @@ class ObjectArchive {
     ObjectArchive();
 
     // Unloads the buffer using method flush().
-    ~ObjectArchive();
+    virtual ~ObjectArchive();
 
     // Passes an object through boost serialize, making it easier to handle.
     template <class T> static std::string serialize(T const& val);
@@ -126,7 +126,7 @@ class ObjectArchive {
     size_t get_buffer_size() const;
 
     // Removes an object entry if it's present.
-    void remove(Key const& key);
+    virtual void remove(Key const& key);
 
     // Stores an object and associates it with an id and returns the total size
     // stored.
@@ -142,7 +142,7 @@ class ObjectArchive {
     // which is useful if it won't be used again.
     size_t insert_raw(Key const& key, std::string const& data,
         bool keep_in_buffer = true);
-    size_t insert_raw(Key const& key, std::string&& data,
+    virtual size_t insert_raw(Key const& key, std::string&& data,
         bool keep_in_buffer = true);
 
     // Loads the object associated with the id and stores at val. Returns the
@@ -157,7 +157,7 @@ class ObjectArchive {
     // If the object is larger than the buffer's maximum size, it isn't
     // kept in memory. The user can choose not to add the object to buffer,
     // which is useful if it won't be used again.
-    size_t load_raw(Key const& key, std::string& data,
+    virtual size_t load_raw(Key const& key, std::string& data,
         bool keep_in_buffer = true);
 
     // Saves the least recently used entries so that the buffer size is at most
@@ -184,6 +184,7 @@ class ObjectArchive {
     ObjectArchive(ObjectArchive const& other);
     ObjectArchive const& operator=(ObjectArchive const& other);
 
+  protected:
     // Same as external flush, but the archive can't be used anymore.
     void internal_flush();
 
