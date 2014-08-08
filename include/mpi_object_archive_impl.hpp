@@ -40,12 +40,14 @@ MPIObjectArchive<Key>::MPIObjectArchive(Tags const& tags,
   world_(world),
   record_everything_(record_everything),
   alive_(world->size(), false) {
-    broadcast_others(tags_.alive, true);
+    broadcast_others(tags_.alive, true, false);
+    mpi_process();
   }
 
 template <class Key>
 MPIObjectArchive<Key>::~MPIObjectArchive() {
-  broadcast_others(tags_.alive, false);
+  mpi_process();
+  broadcast_others(tags_.alive, false, false);
 }
 
 template <class Key>
@@ -114,14 +116,21 @@ size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
 
 template <class Key>
 void MPIObjectArchive<Key>::mpi_process() {
+//  broadcast_others(tags_.alive, true, false);
+
   bool stop = false;
   while (!stop) {
     auto status_opt = world_->iprobe();
     if (status_opt) {
       auto status = status_opt.get();
+
       if (status.tag() == tags_.alive) {
         bool alive;
         world_->recv(status.source(), status.tag(), alive);
+
+        if (alive && !alive_[status.source()])
+          world_->send(status.source(), status.tag(), true);
+
         alive_[status.source()] = alive;
       }
       else if (status.tag() == tags_.invalidated) {
@@ -172,11 +181,13 @@ void MPIObjectArchive<Key>::mpi_process() {
 
 template <class Key>
 template <class T>
-void MPIObjectArchive<Key>::broadcast_others(int tag, T const& val) {
+void MPIObjectArchive<Key>::broadcast_others(int tag, T const& val,
+    bool check_alive) {
   std::vector<boost::mpi::request> reqs(world_->size());
   for (int i = 0; i < world_->size(); i++)
-    if (alive_[i])
+    if (alive_[i] || (!check_alive && i != world_->rank()))
       reqs[i] = world_->isend(i, tags_.invalidated, val);
+
   boost::mpi::wait_all(reqs.begin(), reqs.end());
 }
 
