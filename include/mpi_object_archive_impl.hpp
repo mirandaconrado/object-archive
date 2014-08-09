@@ -170,7 +170,7 @@ void MPIObjectArchive<Key>::mpi_process() {
 
         if (response.found) {
           std::string data;
-          load_raw(key, data, false);
+          ObjectArchive<Key>::load_raw(key, data, false);
           world_->send(status.source(), tags_.response_data, data);
         }
 
