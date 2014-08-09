@@ -201,10 +201,14 @@ template <class T>
 boost::mpi::status MPIObjectArchive<Key>::non_blocking_recv(int source, int tag,
     T& value) {
   boost::mpi::request req = world_->irecv(source, tag, value);
-  while (!req.test())
-    mpi_process();
 
-  return req.test().get();
+  while (1) {
+    auto status_opt = req.test();
+    if (status_opt)
+      return status_opt.get();
+
+    mpi_process();
+  }
 }
 
 #endif
