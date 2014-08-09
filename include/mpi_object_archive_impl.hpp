@@ -116,8 +116,6 @@ size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
 
 template <class Key>
 void MPIObjectArchive<Key>::mpi_process() {
-//  broadcast_others(tags_.alive, true, false);
-
   bool stop = false;
   while (!stop) {
     auto status_opt = world_->iprobe();
