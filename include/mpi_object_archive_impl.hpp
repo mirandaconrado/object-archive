@@ -98,23 +98,13 @@ size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
       if (!alive_[i])
         n_waiting_response--;
 
-    while (n_waiting_response > 0) {
-      Response response;
-      boost::mpi::status status = non_blocking_recv(boost::mpi::any_source,
-          tags_.response, response);
+    auto response_data = get_response(boost::mpi::any_source,
+        n_waiting_response, request);
 
-      if (response.request.counter != current_request_counter ||
-          response.request.key != key)
-        continue;
-
-      if (response.found) {
-        non_blocking_recv(status.source(), tags_.response_data, data);
-        ObjectArchive<Key>::insert_raw(key, data, true);
+    if (response_data) {
+        ObjectArchive<Key>::insert_raw(key, response_data.get(), true);
         size = ObjectArchive<Key>::load_raw(key, data, keep_in_buffer);
         return size;
-      }
-
-      n_waiting_response--;
     }
   }
 
@@ -186,16 +176,10 @@ void MPIObjectArchive<Key>::process_inserted(int source, Key const& key) {
     world_->send(source, tags_.request, request);
 
     // Avoid non-processed responses from another request
-    Response response;
-    do {
-      non_blocking_recv(source, tags_.response, response);
-    } while (response.request.counter != current_request_counter ||
-             response.request.key != key);
+    auto response_data = get_response(source, 1, request);
 
-    if (response.found) {
-      std::string data;
-      non_blocking_recv(source, tags_.response_data, data);
-      ObjectArchive<Key>::insert_raw(key, data, false);
+    if (response_data) {
+      ObjectArchive<Key>::insert_raw(key, response_data.get(), false);
     }
   }
 }
@@ -210,12 +194,65 @@ void MPIObjectArchive<Key>::process_request(int source,
   auto response_req = world_->isend(source, tags_.response, response);
 
   if (response.found) {
-    std::string data;
-    ObjectArchive<Key>::load_raw(request.key, data, false);
-    world_->send(source, tags_.response_data, data);
+    ResponseData response_data;
+    response_data.request = request;
+    ObjectArchive<Key>::load_raw(request.key, response_data.data, false);
+    world_->send(source, tags_.response_data, response_data);
   }
 
   response_req.wait();
+}
+
+template <class Key>
+boost::optional<std::string> MPIObjectArchive<Key>::get_response(int source,
+    int n_waiting, Request& request) {
+  boost::optional<std::string> ret;
+
+  alive_requests_[request] = &request;
+  requests_waiting_[&request] = n_waiting;
+
+  // Loops trying to get an response and processing everyone until ours is
+  // found.
+  while (requests_waiting_[&request] > 0 &&
+         requests_found_.count(&request) == 0) {
+    Response response;
+    boost::mpi::status status = non_blocking_recv(source, tags_.response,
+        response);
+
+    if (alive_requests_.count(response.request) > 0) {
+      Request* req = alive_requests_[response.request];
+      requests_waiting_[req]--;
+
+      if (response.found)
+        requests_found_[req] = status.source();
+    }
+  }
+
+  // If found somewhere, gets the data.
+  if (requests_found_.count(&request) > 0) {
+    int source = requests_found_[&request];
+
+    while (responses_data_.count(&request) == 0) {
+      ResponseData response_data;
+      boost::mpi::status status = non_blocking_recv(source, tags_.response_data,
+          response_data);
+
+      if (alive_requests_.count(response_data.request) > 0) {
+        Request* req = alive_requests_[response_data.request];
+        requests_found_[req] = status.source();
+        responses_data_[req] = response_data.data;
+      }
+    }
+
+    ret = boost::optional<std::string>(responses_data_[&request]);
+  }
+
+  alive_requests_.erase(request);
+  requests_waiting_.erase(&request);
+  requests_found_.erase(&request);
+  responses_data_.erase(&request);
+
+  return ret;
 }
 
 template <class Key>

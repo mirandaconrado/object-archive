@@ -29,7 +29,9 @@ SOFTWARE.
 #undef ENABLE_THREADS
 
 #include <boost/mpi.hpp>
+#include <map>
 #include <vector>
+#include <unordered_map>
 
 #include "object_archive.hpp"
 
@@ -73,6 +75,10 @@ class MPIObjectArchive: public ObjectArchive<Key> {
         ar & key;
         ar & counter;
       }
+
+      bool operator<(Request const& other) const {
+        return key < other.key || (key == other.key && counter < other.counter);
+      }
     };
 
     struct Response {
@@ -86,10 +92,23 @@ class MPIObjectArchive: public ObjectArchive<Key> {
       }
     };
 
+    struct ResponseData {
+      Request request;
+      std::string data;
+
+      template<class Archive>
+      void serialize(Archive& ar, const unsigned int version) {
+        ar & request;
+        ar & data;
+      }
+    };
+
     void process_alive(int source, bool alive);
     void process_invalidated(int source, Key const& key);
     void process_inserted(int source, Key const& key);
     void process_request(int source, Request const& request);
+    boost::optional<std::string> get_response(int source, int n_waiting,
+        Request& request);
 
     template <class T>
     void broadcast_others(int tag, T const& val, bool check_alive = true);
@@ -102,6 +121,11 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     bool record_everything_;
     std::vector<bool> alive_; // By default, considers itself dead
     int request_counter_;
+
+    std::map<Request, Request*> alive_requests_;
+    std::unordered_map<Request*, int> requests_waiting_;
+    std::unordered_map<Request*, int> requests_found_;
+    std::unordered_map<Request*, std::string> responses_data_;
 };
 
 #include "mpi_object_archive_impl.hpp"
