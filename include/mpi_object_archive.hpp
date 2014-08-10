@@ -78,6 +78,10 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     template <class T>
     void broadcast_others(int tag, T const& val, bool check_alive = true);
 
+    void process_alive(int source, bool alive);
+    void process_invalidated(int source, Key const& key);
+    void process_inserted(int source, Key const& key);
+
     template <class T>
     boost::mpi::status non_blocking_recv(int source, int tag, T& value);
 

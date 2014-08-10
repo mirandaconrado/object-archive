@@ -115,6 +115,42 @@ size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
 }
 
 template <class Key>
+void MPIObjectArchive<Key>::process_alive(int source, bool alive) {
+  bool old_alive;
+
+  old_alive = alive_[source];
+  alive_[source] = alive;
+
+  // Became alive
+  if (alive && !old_alive)
+    world_->send(source, tags_.alive, true);
+}
+
+template <class Key>
+void MPIObjectArchive<Key>::process_invalidated(int source, Key const& key) {
+  ObjectArchive<Key>::remove(key);
+}
+
+template <class Key>
+void MPIObjectArchive<Key>::process_inserted(int source, Key const& key) {
+  if (record_everything_) {
+    world_->send(source, tags_.request, key);
+
+    // Avoid non-processed responses from another request
+    Response response;
+    do {
+      non_blocking_recv(source, tags_.response, response);
+    } while (response.key != key);
+
+    if (response.found) {
+      std::string data;
+      non_blocking_recv(source, tags_.response_data, data);
+      ObjectArchive<Key>::insert_raw(key, data, false);
+    }
+  }
+}
+
+template <class Key>
 void MPIObjectArchive<Key>::mpi_process() {
   bool stop = false;
   while (!stop) {
@@ -125,35 +161,17 @@ void MPIObjectArchive<Key>::mpi_process() {
       if (status.tag() == tags_.alive) {
         bool alive;
         world_->recv(status.source(), status.tag(), alive);
-
-        if (alive && !alive_[status.source()])
-          world_->send(status.source(), status.tag(), true);
-
-        alive_[status.source()] = alive;
+        process_alive(status.source(), alive);
       }
       else if (status.tag() == tags_.invalidated) {
         Key key;
         world_->recv(status.source(), status.tag(), key);
-        ObjectArchive<Key>::remove(key);
+        process_invalidated(status.source(), key);
       }
       else if (status.tag() == tags_.inserted) {
         Key key;
         world_->recv(status.source(), status.tag(), key);
-
-        if (record_everything_) {
-          world_->send(status.source(), tags_.request, key);
-
-          Response response;
-          do {
-            non_blocking_recv(status.source(), tags_.response, response);
-          } while (response.key != key);
-
-          if (response.found) {
-            std::string data;
-            non_blocking_recv(status.source(), tags_.response_data, data);
-            ObjectArchive<Key>::insert_raw(key, data, false);
-          }
-        }
+        process_inserted(status.source(), key);
       }
       else if (status.tag() == tags_.request) {
         Key key;
