@@ -64,23 +64,35 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     void mpi_process();
 
   private:
-    struct Response {
+    struct Request {
       Key key;
-      bool found;
+      int counter;
 
       template<class Archive>
       void serialize(Archive& ar, const unsigned int version) {
         ar & key;
+        ar & counter;
+      }
+    };
+
+    struct Response {
+      Request request;
+      bool found;
+
+      template<class Archive>
+      void serialize(Archive& ar, const unsigned int version) {
+        ar & request;
         ar & found;
       }
     };
 
-    template <class T>
-    void broadcast_others(int tag, T const& val, bool check_alive = true);
-
     void process_alive(int source, bool alive);
     void process_invalidated(int source, Key const& key);
     void process_inserted(int source, Key const& key);
+    void process_request(int source, Request const& request);
+
+    template <class T>
+    void broadcast_others(int tag, T const& val, bool check_alive = true);
 
     template <class T>
     boost::mpi::status non_blocking_recv(int source, int tag, T& value);
@@ -89,6 +101,7 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     boost::mpi::communicator* world_;
     bool record_everything_;
     std::vector<bool> alive_; // By default, considers itself dead
+    int request_counter_;
 };
 
 #include "mpi_object_archive_impl.hpp"

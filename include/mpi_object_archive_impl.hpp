@@ -39,7 +39,8 @@ MPIObjectArchive<Key>::MPIObjectArchive(Tags const& tags,
   tags_(tags),
   world_(world),
   record_everything_(record_everything),
-  alive_(world->size(), false) {
+  alive_(world->size(), false),
+  request_counter_(0) {
     broadcast_others(tags_.alive, true, false);
     mpi_process();
   }
@@ -84,7 +85,12 @@ size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
 
   // Object not found here!
   if (size == 0) {
-    broadcast_others(tags_.request, key);
+    int current_request_counter = request_counter_++;
+
+    Request request;
+    request.key = key;
+    request.counter = current_request_counter;
+    broadcast_others(tags_.request, request);
 
     int n_waiting_response = world_->size();
 
@@ -97,7 +103,8 @@ size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
       boost::mpi::status status = non_blocking_recv(boost::mpi::any_source,
           tags_.response, response);
 
-      if (response.key != key)
+      if (response.request.counter != current_request_counter ||
+          response.request.key != key)
         continue;
 
       if (response.found) {
@@ -112,42 +119,6 @@ size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
   }
 
   return size;
-}
-
-template <class Key>
-void MPIObjectArchive<Key>::process_alive(int source, bool alive) {
-  bool old_alive;
-
-  old_alive = alive_[source];
-  alive_[source] = alive;
-
-  // Became alive
-  if (alive && !old_alive)
-    world_->send(source, tags_.alive, true);
-}
-
-template <class Key>
-void MPIObjectArchive<Key>::process_invalidated(int source, Key const& key) {
-  ObjectArchive<Key>::remove(key);
-}
-
-template <class Key>
-void MPIObjectArchive<Key>::process_inserted(int source, Key const& key) {
-  if (record_everything_) {
-    world_->send(source, tags_.request, key);
-
-    // Avoid non-processed responses from another request
-    Response response;
-    do {
-      non_blocking_recv(source, tags_.response, response);
-    } while (response.key != key);
-
-    if (response.found) {
-      std::string data;
-      non_blocking_recv(source, tags_.response_data, data);
-      ObjectArchive<Key>::insert_raw(key, data, false);
-    }
-  }
 }
 
 template <class Key>
@@ -174,23 +145,9 @@ void MPIObjectArchive<Key>::mpi_process() {
         process_inserted(status.source(), key);
       }
       else if (status.tag() == tags_.request) {
-        Key key;
-        world_->recv(status.source(), status.tag(), key);
-
-        Response response;
-        response.key = key;
-        response.found = this->is_available(key);
-
-        auto response_req = world_->isend(status.source(), tags_.response,
-            response);
-
-        if (response.found) {
-          std::string data;
-          ObjectArchive<Key>::load_raw(key, data, false);
-          world_->send(status.source(), tags_.response_data, data);
-        }
-
-        response_req.wait();
+        Request request;
+        world_->recv(status.source(), status.tag(), request);
+        process_request(status.source(), request);
       }
       else
         stop = true;
@@ -198,6 +155,67 @@ void MPIObjectArchive<Key>::mpi_process() {
     else
       stop = true;
   }
+}
+
+template <class Key>
+void MPIObjectArchive<Key>::process_alive(int source, bool alive) {
+  bool old_alive;
+
+  old_alive = alive_[source];
+  alive_[source] = alive;
+
+  // Became alive
+  if (alive && !old_alive)
+    world_->send(source, tags_.alive, true);
+}
+
+template <class Key>
+void MPIObjectArchive<Key>::process_invalidated(int source, Key const& key) {
+  ObjectArchive<Key>::remove(key);
+}
+
+template <class Key>
+void MPIObjectArchive<Key>::process_inserted(int source, Key const& key) {
+  if (record_everything_) {
+    int current_request_counter = request_counter_++;
+
+    Request request;
+    request.key = key;
+    request.counter = current_request_counter;
+
+    world_->send(source, tags_.request, request);
+
+    // Avoid non-processed responses from another request
+    Response response;
+    do {
+      non_blocking_recv(source, tags_.response, response);
+    } while (response.request.counter != current_request_counter ||
+             response.request.key != key);
+
+    if (response.found) {
+      std::string data;
+      non_blocking_recv(source, tags_.response_data, data);
+      ObjectArchive<Key>::insert_raw(key, data, false);
+    }
+  }
+}
+
+template <class Key>
+void MPIObjectArchive<Key>::process_request(int source,
+    Request const& request) {
+  Response response;
+  response.request = request;
+  response.found = this->is_available(request.key);
+
+  auto response_req = world_->isend(source, tags_.response, response);
+
+  if (response.found) {
+    std::string data;
+    ObjectArchive<Key>::load_raw(request.key, data, false);
+    world_->send(source, tags_.response_data, data);
+  }
+
+  response_req.wait();
 }
 
 template <class Key>
