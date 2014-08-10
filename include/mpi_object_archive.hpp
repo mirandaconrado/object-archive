@@ -123,6 +123,7 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     int request_counter_;
 
     std::map<Request, Request*> alive_requests_;
+    std::unordered_map<Request*, int> requests_source_;
     std::unordered_map<Request*, int> requests_waiting_;
     std::unordered_map<Request*, int> requests_found_;
     std::unordered_map<Request*, std::string> responses_data_;

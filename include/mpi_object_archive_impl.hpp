@@ -157,6 +157,10 @@ void MPIObjectArchive<Key>::process_alive(int source, bool alive) {
   // Became alive
   if (alive && !old_alive)
     world_->send(source, tags_.alive, true);
+  else if (old_alive && !alive) // Died
+    for (auto& it : requests_source_)
+      if (it.second == source || it.second == boost::mpi::any_source)
+        requests_waiting_[it.first]--;
 }
 
 template <class Key>
@@ -209,6 +213,7 @@ boost::optional<std::string> MPIObjectArchive<Key>::get_response(int source,
   boost::optional<std::string> ret;
 
   alive_requests_[request] = &request;
+  requests_source_[&request] = source;
   requests_waiting_[&request] = n_waiting;
 
   // Loops trying to get an response and processing everyone until ours is
@@ -248,6 +253,7 @@ boost::optional<std::string> MPIObjectArchive<Key>::get_response(int source,
   }
 
   alive_requests_.erase(request);
+  requests_source_.erase(&request);
   requests_waiting_.erase(&request);
   requests_found_.erase(&request);
   responses_data_.erase(&request);
