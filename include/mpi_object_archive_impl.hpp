@@ -287,9 +287,12 @@ MPIObjectArchive<Key>::non_blocking_recv(int source, int tag, T& value) {
     if (status_opt)
       return status_opt;
 
-    mpi_process();
-    if (source != boost::mpi::any_source && !alive_[source])
+    if (source != boost::mpi::any_source && !alive_[source]) {
+      req.cancel();
       return boost::optional<boost::mpi::status>();
+    }
+
+    mpi_process();
   }
 }
 
