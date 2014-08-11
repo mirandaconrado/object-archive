@@ -28,6 +28,27 @@ SOFTWARE.
 
 #include "test_mpi.hpp"
 
+TEST(MPIObjectArchiveTest, Remove) {
+  MPIObjectArchive<size_t> ar(&world);
+  world.barrier();
+
+  ar.insert(world.rank(), world.rank()+5);
+  world.barrier();
+
+  if (world.rank() == 0)
+    ar.remove(world.size()-1);
+  else
+    ar.remove(world.rank()-1);
+  world.barrier();
+
+  ar.mpi_process();
+  world.barrier();
+
+  EXPECT_FALSE(ar.is_available(world.rank()));
+
+  world.barrier();
+}
+
 TEST(MPIObjectArchiveTest, InsertLoad) {
   MPIObjectArchive<size_t> ar(&world);
   world.barrier();
