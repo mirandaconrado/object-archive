@@ -221,15 +221,16 @@ boost::optional<std::string> MPIObjectArchive<Key>::get_response(int source,
   while (requests_waiting_[&request] > 0 &&
          requests_found_.count(&request) == 0) {
     Response response;
-    boost::mpi::status status = non_blocking_recv(source, tags_.response,
-        response);
+    auto status = non_blocking_recv(source, tags_.response, response);
+    if (!status)
+      continue;
 
     if (alive_requests_.count(response.request) > 0) {
       Request* req = alive_requests_[response.request];
       requests_waiting_[req]--;
 
       if (response.found)
-        requests_found_[req] = status.source();
+        requests_found_[req] = status->source();
     }
   }
 
@@ -239,12 +240,14 @@ boost::optional<std::string> MPIObjectArchive<Key>::get_response(int source,
 
     while (responses_data_.count(&request) == 0) {
       ResponseData response_data;
-      boost::mpi::status status = non_blocking_recv(source, tags_.response_data,
+      auto status = non_blocking_recv(source, tags_.response_data,
           response_data);
+      if (!status)
+        continue;
 
       if (alive_requests_.count(response_data.request) > 0) {
         Request* req = alive_requests_[response_data.request];
-        requests_found_[req] = status.source();
+        requests_found_[req] = status->source();
         responses_data_[req] = response_data.data;
       }
     }
@@ -275,16 +278,18 @@ void MPIObjectArchive<Key>::broadcast_others(int tag, T const& val,
 
 template <class Key>
 template <class T>
-boost::mpi::status MPIObjectArchive<Key>::non_blocking_recv(int source, int tag,
-    T& value) {
+boost::optional<boost::mpi::status>
+MPIObjectArchive<Key>::non_blocking_recv(int source, int tag, T& value) {
   boost::mpi::request req = world_->irecv(source, tag, value);
 
   while (1) {
     auto status_opt = req.test();
     if (status_opt)
-      return status_opt.get();
+      return status_opt;
 
     mpi_process();
+    if (source != boost::mpi::any_source && !alive_[source])
+      return boost::optional<boost::mpi::status>();
   }
 }
 
