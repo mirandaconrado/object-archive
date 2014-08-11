@@ -55,6 +55,8 @@ template <class Key>
 void MPIObjectArchive<Key>::remove(Key const& key) {
   mpi_process();
 
+  OBJECT_ARCHIVE_MUTEX_GUARD;
+
   broadcast_others(tags_.invalidated, key);
 
   ObjectArchive<Key>::remove(key);
@@ -64,6 +66,8 @@ template <class Key>
 size_t MPIObjectArchive<Key>::insert_raw(Key const& key, std::string&& data,
     bool keep_in_buffer) {
   mpi_process();
+
+  OBJECT_ARCHIVE_MUTEX_GUARD;
 
   size_t size = ObjectArchive<Key>::insert_raw(key,
       std::forward<std::string>(data), true);
@@ -80,6 +84,8 @@ template <class Key>
 size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
     bool keep_in_buffer) {
   mpi_process();
+
+  OBJECT_ARCHIVE_MUTEX_GUARD;
 
   size_t size = ObjectArchive<Key>::load_raw(key, data, keep_in_buffer);
 
@@ -113,6 +119,8 @@ size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
 
 template <class Key>
 void MPIObjectArchive<Key>::mpi_process() {
+  OBJECT_ARCHIVE_MUTEX_GUARD;
+
   bool stop = false;
   while (!stop) {
     auto status_opt = world_->iprobe();

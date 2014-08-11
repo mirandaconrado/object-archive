@@ -25,9 +25,6 @@ SOFTWARE.
 #ifndef __MPI_OBJECT_ARCHIVE_HPP__
 #define __MPI_OBJECT_ARCHIVE_HPP__
 
-// Can't use threads and MPI
-#undef ENABLE_THREADS
-
 #include <boost/mpi.hpp>
 #include <map>
 #include <vector>
