@@ -22,6 +22,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+// The communication logic between archives is as follows:
+// 1) When they are constructed, they alert everyone they became alive. When
+// destructed, they say they aren't dead anymore.
+// 1.1) If a node receives an alive message from a previously dead node, they
+// answer back saying that they are alive too.
+// 1.2) If a node receives a dead message from a previously alive node, they
+// check every request to see if that node is involved. If it is, reduces the
+// number of waiting nodes as it won't answer the request.
+// 2) When an object is removed, an "invalidated" tag is broadcasted.
+// 3) When an object is inserted, an "inserted" tag is broadcasted. Remote nodes
+// do nothing if record_everything is false, as inserting call the remove method
+// before, so the value was already invalidated.
+// 4) When an object is requested and isn't found in the local archive, a
+// "request" tag is broadcasted.
+// 4.1) If a remote node finds the object in its archive, it sends a "response"
+// message and a "response_data" with the data.
+// 4.2) If a remote doesn't find the object, it sends a negative "response".
+
 #ifndef __MPI_OBJECT_ARCHIVE_IMPL_HPP__
 #define __MPI_OBJECT_ARCHIVE_IMPL_HPP__
 
@@ -89,7 +107,7 @@ size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
 
   size_t size = ObjectArchive<Key>::load_raw(key, data, keep_in_buffer);
 
-  // Object not found here!
+  // Object not found here! Let's find it somewhere else.
   if (size == 0) {
     int current_request_counter = request_counter_++;
 
@@ -123,6 +141,8 @@ void MPIObjectArchive<Key>::mpi_process() {
 
   bool stop = false;
   while (!stop) {
+    // Probes world and, if something is found, check if it's a tag it can deal
+    // right here. Otherwise, stops.
     auto status_opt = world_->iprobe();
     if (status_opt) {
       auto status = status_opt.get();
@@ -162,11 +182,10 @@ void MPIObjectArchive<Key>::process_alive(int source, bool alive) {
   old_alive = alive_[source];
   alive_[source] = alive;
 
-  // Became alive
-  if (alive && !old_alive)
-    world_->send(source, tags_.alive, true);
+  if (alive && !old_alive) // Became alive
+    world_->send(source, tags_.alive, true); // Tells this one is alive too
   else if (old_alive && !alive) // Died
-    for (auto& it : requests_source_)
+    for (auto& it : requests_source_) // Check requests for dependencies
       if (it.second == source || it.second == boost::mpi::any_source)
         requests_waiting_[it.first]--;
 }
@@ -225,7 +244,7 @@ boost::optional<std::string> MPIObjectArchive<Key>::get_response(int source,
   requests_waiting_[&request] = n_waiting;
 
   // Loops trying to get an response and processing everyone until ours is
-  // found.
+  // found or nobody got the data.
   while (requests_waiting_[&request] > 0 &&
          requests_found_.count(&request) == 0) {
     Response response;
@@ -260,7 +279,7 @@ boost::optional<std::string> MPIObjectArchive<Key>::get_response(int source,
       }
     }
 
-    ret = boost::optional<std::string>(responses_data_[&request]);
+    ret = boost::optional<std::string>(std::move(responses_data_[&request]));
   }
 
   alive_requests_.erase(request);
@@ -292,9 +311,10 @@ MPIObjectArchive<Key>::non_blocking_recv(int source, int tag, T& value) {
 
   while (1) {
     auto status_opt = req.test();
-    if (status_opt)
+    if (status_opt) // If we got an answer, returns
       return status_opt;
 
+    // If the source is a specific node and it died, returns empty.
     if (source != boost::mpi::any_source && !alive_[source]) {
       req.cancel();
       return boost::optional<boost::mpi::status>();

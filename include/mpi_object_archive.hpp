@@ -181,10 +181,20 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     std::vector<bool> alive_; // By default, considers itself dead
     int request_counter_; // Incrementing counter for requests
 
+    // Stores data associated with every request made. This should only be used
+    // inside get_response and allows multiple requests to occur at the same
+    // time. This can happen even in single-threaded programs, as multiple
+    // requests can happen if record_everything_ is true.
+
+    // Map between requests and their pointers, which are keys to the other maps
     std::map<Request, Request*> alive_requests_;
+    // Source of the request
     std::unordered_map<Request*, int> requests_source_;
+    // Number of responses to wait
     std::unordered_map<Request*, int> requests_waiting_;
+    // Rank of the node that got the data
     std::unordered_map<Request*, int> requests_found_;
+    // Data obtained in response of the request
     std::unordered_map<Request*, std::string> responses_data_;
 };
 
