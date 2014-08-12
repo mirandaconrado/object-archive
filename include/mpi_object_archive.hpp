@@ -31,9 +31,9 @@ SOFTWARE.
 // available_objects) aren't mapped through MPI, as their returned values may
 // become incorrect right after the call. Hence they only provide local values.
 // In case this information is required, an MPI archive can be instructed to
-// store every remove value.
+// store every remote value.
 //
-// The objects require 6 different tags to communicate among themselves, which
+// The archives require 6 different tags to communicate among themselves, which
 // should be the same for all but are personalizable by the user, and uses
 // boost::mpi. The communicator given to the constructor must be kept valid
 // until the archive is destroyed.
@@ -66,6 +66,8 @@ SOFTWARE.
 template <class Key>
 class MPIObjectArchive: public ObjectArchive<Key> {
   public:
+    // Tags that the archives use to communicate. The user can provide his own
+    // values as long as they are different and aren't used in any other place.
     struct Tags {
       int alive = 0;
       int invalidated = 1;
@@ -75,28 +77,41 @@ class MPIObjectArchive: public ObjectArchive<Key> {
       int response_data = 5;
     };
 
+    // Constructs with the default tags. If record_everything is true, this
+    // archive has a copy of every value inserted.
     MPIObjectArchive(boost::mpi::communicator* world,
         bool record_everything = false);
 
+    // Same as the other constructor, but user-provided tags are used.
     MPIObjectArchive(Tags const& tags, boost::mpi::communicator* world,
         bool record_everything = false);
 
     ~MPIObjectArchive();
 
+    // Removes an object entry if it's present.
     virtual void remove(Key const& key);
 
+    // Stores an object that has already been serialized.
     virtual size_t insert_raw(Key const& key, std::string&& data,
         bool keep_in_buffer = true);
 
+    // Loads the object associated with the id and stores at val. Returns the
+    // total size of the object, which is 0 if the object isn't found.
     virtual size_t load_raw(Key const& key, std::string& data,
         bool keep_in_buffer = true);
 
+    // Processes MPI messages from other nodes. This is called automatically on
+    // the other methods, but may be called directly if the node is idle.
     void mpi_process();
 
   private:
+    // Message that requests a given object associated with the given key to a
+    // remote node.
     struct Request {
       Key key;
-      int counter;
+      int counter; // This counter is required in case of multiple requests with
+                   // the same key. Although the code should work without it,
+                   // the tests seem to get stuck. TODO: check why it gets stuck
 
       template<class Archive>
       void serialize(Archive& ar, const unsigned int version) {
@@ -109,6 +124,8 @@ class MPIObjectArchive: public ObjectArchive<Key> {
       }
     };
 
+    // Response to a data request saying whether it was found in the responding
+    // node.
     struct Response {
       Request request;
       bool found;
@@ -120,6 +137,7 @@ class MPIObjectArchive: public ObjectArchive<Key> {
       }
     };
 
+    // If the data was found, it's sent back to the original node.
     struct ResponseData {
       Request request;
       std::string data;
@@ -131,25 +149,37 @@ class MPIObjectArchive: public ObjectArchive<Key> {
       }
     };
 
+    // Processes the MPI tags other nodes might have sent
     void process_alive(int source, bool alive);
     void process_invalidated(int source, Key const& key);
     void process_inserted(int source, Key const& key);
     void process_request(int source, Request const& request);
+
+    // Gets the data associated with a given request, returning an empty
+    // optional if it's not found. If source is a given node, then n_waiting
+    // should be 1. If source is any_source, then n_waiting indicates how many
+    // negative responses must be found before aborting.
     boost::optional<std::string> get_response(int source, int n_waiting,
         Request& request);
 
+    // Sends an specific value with a given tag to every other node. If
+    // check_alive is true, the message is only sent to alive nodes.
     template <class T>
     void broadcast_others(int tag, T const& val, bool check_alive = true);
 
+    // Tries to receive a value from a given combination of source and tag. If
+    // the source dies while waiting, returns an empty optional. This should be
+    // used everywhere instead of simply receiving, as it call mpi_processes to
+    // avoid deadlocks.
     template <class T>
     boost::optional<boost::mpi::status>
     non_blocking_recv(int source, int tag, T& value);
 
-    Tags tags_;
+    Tags tags_; // Tags to be used by archive
     boost::mpi::communicator* world_;
-    bool record_everything_;
+    bool record_everything_; // Whether to record every data
     std::vector<bool> alive_; // By default, considers itself dead
-    int request_counter_;
+    int request_counter_; // Incrementing counter for requests
 
     std::map<Request, Request*> alive_requests_;
     std::unordered_map<Request*, int> requests_source_;
