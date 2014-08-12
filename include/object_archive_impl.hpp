@@ -392,9 +392,10 @@ template <class Key>
 void ObjectArchive<Key>::clear() {
   OBJECT_ARCHIVE_MUTEX_GUARD;
 
-  objects_.clear();
-  LRU_.clear();
-  must_rebuild_file_ = true;
+  auto key_list = available_objects();
+  for (auto& it : key_list)
+    remove(it);
+
   flush();
 }
 
