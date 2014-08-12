@@ -22,6 +22,37 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+// This file defines an implementation of the ObjectArchive that allows very
+// loose consistency to be kept between archives in a MPI environment.
+//
+// The three basic operations (insert, load and remove) are communicated to
+// object instances in other MPI nodes, so data can be transparently shared.
+// However, the methods to check if a value is present (is_available and
+// available_objects) aren't mapped through MPI, as their returned values may
+// become incorrect right after the call. Hence they only provide local values.
+// In case this information is required, an MPI archive can be instructed to
+// store every remove value.
+//
+// The objects require 6 different tags to communicate among themselves, which
+// should be the same for all but are personalizable by the user, and uses
+// boost::mpi. The communicator given to the constructor must be kept valid
+// until the archive is destroyed.
+//
+// Threading support: to allow the archive to be used by multiple threads, set
+// ENABLE_THREADS. This should place mutex at the right places for consistency.
+//
+// Example:
+// MPIObjectArchive<std::string> ar(&world);
+// ar.init("path/to/file");
+// ar.set_buffer_size("1.5G");
+//
+// ar.insert("filename", filedata);
+// [do some stuff]
+// ar.load("filename", filedata);
+// [filedata has the previous value again]
+// ar.remove("filename");
+// [filedata keeps its value]
+
 #ifndef __MPI_OBJECT_ARCHIVE_HPP__
 #define __MPI_OBJECT_ARCHIVE_HPP__
 
