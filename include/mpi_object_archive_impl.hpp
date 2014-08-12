@@ -320,6 +320,20 @@ MPIObjectArchive<Key>::non_blocking_recv(int source, int tag, T& value) {
       return boost::optional<boost::mpi::status>();
     }
 
+    if (source == boost::mpi::any_source) {
+      bool found_one_alive = false;
+      for (int i = 0; i < world_->size(); i++)
+        if (alive_[i]) {
+          found_one_alive = true;
+          break;
+        }
+
+      if (!found_one_alive) { // Nobody can send the data
+        req.cancel();
+        return boost::optional<boost::mpi::status>();
+      }
+    }
+
     mpi_process();
   }
 }
