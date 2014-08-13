@@ -294,7 +294,7 @@ size_t ObjectArchive<Key>::insert_raw(Key const& key, std::string&& data,
   touch_LRU(&it->second);
 
   if (!keep_in_buffer)
-    write_back(key);
+    write_back(it);
 
   return size;
 }
@@ -350,7 +350,7 @@ size_t ObjectArchive<Key>::load_raw(Key const& key, std::string& data,
     else
       data = entry.data;
 
-    write_back(key);
+    write_back(it);
   }
   else
     data = entry.data;
@@ -469,6 +469,12 @@ bool ObjectArchive<Key>::write_back(Key const& key) {
   if (it == objects_.end())
     return false;
 
+  return write_back(it);
+}
+
+template <class Key>
+bool ObjectArchive<Key>::write_back(
+    typename std::unordered_map<Key, ObjectEntry>::iterator const& it) {
   ObjectEntry& entry = it->second;
 
   if (entry.modified) {

@@ -185,17 +185,6 @@ class ObjectArchive {
     ObjectArchive const& operator=(ObjectArchive const& other);
 
   protected:
-    // Same as external flush, but the archive can't be used anymore.
-    void internal_flush();
-
-    // Writes a file back to disk, freeing its buffer space. Returns if the
-    // object id is inside the buffer.
-    bool write_back(Key const& key);
-
-    // Puts the id in the front of the list, saying it was the last one used.
-    struct ObjectEntry;
-    void touch_LRU(ObjectEntry const* entry);
-
     // Holds the entry for one object with all the information required to
     // manage it.
     struct ObjectEntry {
@@ -205,6 +194,19 @@ class ObjectArchive {
       size_t size; // Total object size. data.size() == size if loaded
       bool modified; // If modified, the file must be written back to disk
     };
+
+    // Same as external flush, but the archive can't be used anymore.
+    void internal_flush();
+
+    // Writes a file back to disk, freeing its buffer space. Returns if the
+    // object id is inside the buffer.
+    bool write_back(Key const& key);
+    bool write_back(
+        typename std::unordered_map<Key, ObjectEntry>::iterator const& it);
+
+    // Puts the id in the front of the list, saying it was the last one used.
+    void touch_LRU(ObjectEntry const* entry);
+
     std::unordered_map<Key, ObjectEntry> objects_;
 
     std::list<ObjectEntry const*> LRU_; // Most recent elements are on the front
