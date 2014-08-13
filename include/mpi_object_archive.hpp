@@ -42,6 +42,7 @@ SOFTWARE.
 // ENABLE_THREADS. This should place mutex at the right places for consistency.
 //
 // Example:
+// boost::mpi::communicator world;
 // MPIObjectArchive<std::string> ar(&world);
 // ar.init("path/to/file");
 // ar.set_buffer_size("1.5G");

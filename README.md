@@ -41,3 +41,37 @@ Threading
 
 If the archive will be used by multiple threads, ENABLE_THREADS should be set
 during compilation.
+
+MPI
+---------
+
+A class named MPIObjectArchive is provided and can be used like ObjectArchive,
+but provides very loose consistency between archives in a MPI environment. This
+allows the user to load objects without having to worry whether they are in the
+current node or not.
+
+The methods `insert`, `load` and `remove` are used just as in the original
+ObjectArchive, but transfers the data between nodes to keep the consistency.
+Loaded data are stored locally for caching. The user can call `mpi_process` when
+the node is idle to process messages from other nodes.
+
+The communication is based on MPI tags, and the user can provide his own values
+so that they don't conflict with the rest of the application. The user can also
+choose to request that every inserted value is stored in a given archive, which
+can be useful to store values to be used in a latter time when the other node
+may not be available.
+
+Example of use:
+```
+boost::mpi::communicator world;
+MPIObjectArchive<std::string> ar(&world);
+ar.init("path/to/file");
+ar.set_buffer_size("1.5G");
+
+ar.insert("filename", filedata);
+[do some stuff]
+ar.load("filename", filedata);
+[filedata has the previous value again]
+ar.remove("filename");
+[filedata keeps its value]
+```
