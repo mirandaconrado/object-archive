@@ -159,12 +159,15 @@ void ObjectArchive<Key>::init(std::string const& filename,
       key_string.resize(key_size);
       stream_.read(&key_string[0], key_size);
 
+      Key key;
+      deserialize(key_string, key);
+
       ObjectEntry entry;
-      deserialize(key_string, entry.key);
       entry.index_in_file = stream_.tellg();
       entry.size = data_size;
       entry.modified = false;
-      objects_[entry.key] = entry;
+      auto it = objects_.emplace(key, entry).first;
+      it->second.key = &it->first;
 
       stream_.seekg(data_size, std::ios_base::cur);
     }
@@ -281,13 +284,14 @@ size_t ObjectArchive<Key>::insert_raw(Key const& key, std::string&& data,
 
   buffer_size_ += size;
 
-  ObjectEntry& entry = objects_[key];
-  entry.key = key;
+  ObjectEntry entry;
   entry.data.swap(data);
   entry.size = size;
   entry.modified = true;
+  auto it = objects_.emplace(key, entry).first;
+  it->second.key = &it->first;
 
-  touch_LRU(&entry);
+  touch_LRU(&it->second);
 
   if (!keep_in_buffer)
     write_back(key);
@@ -358,7 +362,7 @@ template <class Key>
 void ObjectArchive<Key>::unload(size_t desired_size) {
   OBJECT_ARCHIVE_MUTEX_GUARD;
   while (buffer_size_ > desired_size)
-    write_back(LRU_.back()->key);
+    write_back(*LRU_.back()->key);
 }
 
 template <class Key>
@@ -370,8 +374,8 @@ bool ObjectArchive<Key>::is_available(Key const& key) {
 }
 
 template <class Key>
-std::list<Key> ObjectArchive<Key>::available_objects() {
-  std::list<Key> list;
+std::list<Key const*> ObjectArchive<Key>::available_objects() {
+  std::list<Key const*> list;
 
   OBJECT_ARCHIVE_MUTEX_GUARD;
   for (auto& it : objects_)
@@ -394,7 +398,7 @@ void ObjectArchive<Key>::clear() {
 
   auto key_list = available_objects();
   for (auto& it : key_list)
-    remove(it);
+    remove(*it);
 
   flush();
 }
@@ -426,7 +430,7 @@ void ObjectArchive<Key>::internal_flush() {
   for (auto& it : objects_) {
     ObjectEntry& entry = it.second;
 
-    std::string key_str = serialize(entry.key);
+    std::string key_str = serialize(it.first);
 
     size_t key_size = key_str.size();
     size_t data_size = entry.size;

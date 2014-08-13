@@ -169,7 +169,7 @@ class ObjectArchive {
     bool is_available(Key const& key);
 
     // Gets a list of all the results stored in this archive.
-    std::list<Key> available_objects();
+    std::list<Key const*> available_objects();
 
     // Flushs the archive, guaranteeing that the data is saved to a file, which
     // can be used later or continue to be used. The buffer is empty after this
@@ -199,7 +199,7 @@ class ObjectArchive {
     // Holds the entry for one object with all the information required to
     // manage it.
     struct ObjectEntry {
-      Key key;
+      Key const* key;
       std::string data; // Data for the object
       size_t index_in_file; // Index for finding it inside a file
       size_t size; // Total object size. data.size() == size if loaded
