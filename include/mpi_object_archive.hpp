@@ -43,7 +43,7 @@ SOFTWARE.
 //
 // Example:
 // boost::mpi::communicator world;
-// MPIObjectArchive<std::string> ar(&world);
+// MPIObjectArchive<std::string> ar(world);
 // ar.init("path/to/file");
 // ar.set_buffer_size("1.5G");
 //
@@ -81,11 +81,11 @@ class MPIObjectArchive: public ObjectArchive<Key> {
 
     // Constructs with the default tags. If record_everything is true, this
     // archive has a copy of every value inserted.
-    MPIObjectArchive(boost::mpi::communicator* world,
+    MPIObjectArchive(boost::mpi::communicator& world,
         bool record_everything = false);
 
     // Same as the other constructor, but user-provided tags are used.
-    MPIObjectArchive(Tags const& tags, boost::mpi::communicator* world,
+    MPIObjectArchive(Tags const& tags, boost::mpi::communicator& world,
         bool record_everything = false);
 
     ~MPIObjectArchive();
@@ -181,7 +181,7 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     non_blocking_recv(int source, int tag, T& value);
 
     Tags tags_; // Tags to be used by archive
-    boost::mpi::communicator* world_;
+    boost::mpi::communicator& world_;
     bool record_everything_; // Whether to record every data
     std::vector<bool> alive_; // By default, considers itself dead
     int request_counter_; // Incrementing counter for requests
