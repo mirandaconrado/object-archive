@@ -15,7 +15,6 @@ else()
   find_package(Boost 1.55.0 REQUIRED COMPONENTS filesystem iostreams serialization system)
 endif()
 
-set(CMAKE_CXX_COMPILER "clang++")
 include_directories(include)
 include_directories(${Boost_INCLUDE_DIRS})
 
