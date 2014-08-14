@@ -75,7 +75,8 @@ class MPIObjectArchive: public ObjectArchive<Key> {
       int inserted = 2;
       int request = 3;
       int response = 4;
-      int response_data = 5;
+      int request_data = 5;
+      int response_data = 6;
     };
 
     // Constructs with the default tags. If record_everything is true, this
@@ -141,11 +142,13 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     // If the data was found, it's sent back to the original node.
     struct ResponseData {
       Request request;
+      bool valid;
       std::string data;
 
       template<class Archive>
       void serialize(Archive& ar, const unsigned int version) {
         ar & request;
+        ar & valid;
         ar & data;
       }
     };
@@ -155,6 +158,7 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     void process_invalidated(int source, Key const& key);
     void process_inserted(int source, Key const& key);
     void process_request(int source, Request const& request);
+    void process_request_data(int source, Request const& request);
 
     // Gets the data associated with a given request, returning an empty
     // optional if it's not found. If source is a given node, then n_waiting
@@ -195,7 +199,9 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     std::unordered_map<Request*, int> requests_waiting_;
     // Rank of the node that got the data
     std::unordered_map<Request*, int> requests_found_;
-    // Data obtained in response of the request
+    // Valid flags obtained in response of the data request
+    std::unordered_map<Request*, bool> responses_data_valid_;
+    // Data obtained in response of the data request
     std::unordered_map<Request*, std::string> responses_data_;
 };
 

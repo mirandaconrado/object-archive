@@ -167,6 +167,11 @@ void MPIObjectArchive<Key>::mpi_process() {
         world_->recv(status.source(), status.tag(), request);
         process_request(status.source(), request);
       }
+      else if (status.tag() == tags_.request_data) {
+        Request request;
+        world_->recv(status.source(), status.tag(), request);
+        process_request_data(status.source(), request);
+      }
       else
         stop = true;
     }
@@ -222,16 +227,18 @@ void MPIObjectArchive<Key>::process_request(int source,
   response.request = request;
   response.found = this->is_available(request.key);
 
-  auto response_req = world_->isend(source, tags_.response, response);
+  world_->send(source, tags_.response, response);
+}
 
-  if (response.found) {
-    ResponseData response_data;
-    response_data.request = request;
+template <class Key>
+void MPIObjectArchive<Key>::process_request_data(int source,
+    Request const& request) {
+  ResponseData response_data;
+  response_data.request = request;
+  response_data.valid = this->is_available(request.key);
+  if (response_data.valid)
     ObjectArchive<Key>::load_raw(request.key, response_data.data, false);
-    world_->send(source, tags_.response_data, response_data);
-  }
-
-  response_req.wait();
+  world_->send(source, tags_.response_data, response_data);
 }
 
 template <class Key>
@@ -265,7 +272,9 @@ boost::optional<std::string> MPIObjectArchive<Key>::get_response(int source,
   if (requests_found_.count(&request) > 0) {
     int source = requests_found_[&request];
 
-    while (responses_data_.count(&request) == 0) {
+    world_->send(source, tags_.request_data, request);
+
+    while (responses_data_valid_.count(&request) == 0) {
       ResponseData response_data;
       auto status = non_blocking_recv(source, tags_.response_data,
           response_data);
@@ -275,17 +284,21 @@ boost::optional<std::string> MPIObjectArchive<Key>::get_response(int source,
       if (alive_requests_.count(response_data.request) > 0) {
         Request* req = alive_requests_[response_data.request];
         requests_found_[req] = status->source();
-        responses_data_[req] = response_data.data;
+        responses_data_valid_[req] = response_data.valid;
+        if (response_data.valid)
+          responses_data_[req] = response_data.data;
       }
     }
 
-    ret = boost::optional<std::string>(std::move(responses_data_[&request]));
+    if (responses_data_valid_[&request])
+      ret = boost::optional<std::string>(std::move(responses_data_[&request]));
   }
 
   alive_requests_.erase(request);
   requests_source_.erase(&request);
   requests_waiting_.erase(&request);
   requests_found_.erase(&request);
+  responses_data_valid_.erase(&request);
   responses_data_.erase(&request);
 
   return ret;
