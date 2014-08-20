@@ -47,16 +47,16 @@ SOFTWARE.
 
 template <class Key>
 MPIObjectArchive<Key>::MPIObjectArchive(boost::mpi::communicator& world,
-    bool record_everything):
-  MPIObjectArchive(Tags(), world, record_everything) { }
+    filter_type remote_insert_filter):
+  MPIObjectArchive(Tags(), world, remote_insert_filter) { }
 
 template <class Key>
 MPIObjectArchive<Key>::MPIObjectArchive(Tags const& tags,
-    boost::mpi::communicator& world, bool record_everything):
+    boost::mpi::communicator& world, filter_type remote_insert_filter):
   ObjectArchive<Key>(),
   tags_(tags),
   world_(world),
-  record_everything_(record_everything),
+  remote_insert_filter_(remote_insert_filter),
   alive_(world.size(), false),
   request_counter_(0) {
     broadcast_others(tags_.alive, true, false);
@@ -202,7 +202,7 @@ void MPIObjectArchive<Key>::process_invalidated(int source, Key const& key) {
 
 template <class Key>
 void MPIObjectArchive<Key>::process_inserted(int source, Key const& key) {
-  if (record_everything_) {
+  if (remote_insert_filter_(key)) {
     int current_request_counter = request_counter_++;
 
     Request request;

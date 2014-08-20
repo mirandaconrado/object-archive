@@ -30,8 +30,8 @@ SOFTWARE.
 // However, the methods to check if a value is present (is_available and
 // available_objects) aren't mapped through MPI, as their returned values may
 // become incorrect right after the call. Hence they only provide local values.
-// In case this information is required, an MPI archive can be instructed to
-// store every remote value.
+// In case local copies of data inserted in remotes is desired, the MPI archive
+// can be instructed to store them based on the key.
 //
 // The archives require 6 different tags to communicate among themselves, which
 // should be the same for all but are personalizable by the user, and uses
@@ -57,6 +57,7 @@ SOFTWARE.
 #ifndef __MPI_OBJECT_ARCHIVE_HPP__
 #define __MPI_OBJECT_ARCHIVE_HPP__
 
+#include <boost/function.hpp>
 #include <boost/mpi.hpp>
 #include <map>
 #include <vector>
@@ -66,6 +67,9 @@ SOFTWARE.
 
 template <class Key>
 class MPIObjectArchive: public ObjectArchive<Key> {
+  private:
+    typedef boost::function<bool (Key const&)> filter_type;
+
   public:
     // Tags that the archives use to communicate. The user can provide his own
     // values as long as they are different and aren't used in any other place.
@@ -79,14 +83,17 @@ class MPIObjectArchive: public ObjectArchive<Key> {
       int response_data = 6;
     };
 
-    // Constructs with the default tags. If record_everything is true, this
-    // archive has a copy of every value inserted.
+    // Constructs with the default tags. If the filter returns true for a given
+    // key inserted in a remote node, this archive has a copy of the value
+    // inserted.
     MPIObjectArchive(boost::mpi::communicator& world,
-        bool record_everything = false);
+        filter_type remote_insert_filter =
+        filter_type([](Key const&) { return false; }));
 
     // Same as the other constructor, but user-provided tags are used.
     MPIObjectArchive(Tags const& tags, boost::mpi::communicator& world,
-        bool record_everything = false);
+        filter_type remote_insert_filter =
+        filter_type([](Key const&) { return false; }));
 
     ~MPIObjectArchive();
 
@@ -182,7 +189,9 @@ class MPIObjectArchive: public ObjectArchive<Key> {
 
     Tags tags_; // Tags to be used by archive
     boost::mpi::communicator& world_;
-    bool record_everything_; // Whether to record every data
+    // When a remote node inserts a value, it notifies everyone. If this
+    // function returns true, the local archive gets a copy.
+    filter_type remote_insert_filter_;
     std::vector<bool> alive_; // By default, considers itself dead
     int request_counter_; // Incrementing counter for requests
 
