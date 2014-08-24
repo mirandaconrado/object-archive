@@ -57,9 +57,9 @@ the node is idle to process messages from other nodes.
 
 The communication is based on MPI tags, and the user can provide his own values
 so that they don't conflict with the rest of the application. The user can also
-choose to request that every inserted value is stored in a given archive, which
-can be useful to store values to be used in a latter time when the other node
-may not be available.
+provide a filter that chooses whether values inserted in remote nodes should
+also be stored locally based on the key. This can be useful to store values to
+be used in a latter time when the other node may not be available.
 
 Example of use:
 ```
