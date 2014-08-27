@@ -68,7 +68,8 @@ TEST(MPIObjectArchiveTest, InsertLoad) {
 
 TEST(MPIObjectArchiveTest, RecordEverything) {
   MPIObjectArchive<size_t>* ar = new MPIObjectArchive<size_t>(world,
-      [](size_t const&) { return world.rank() == 0; });
+      [](size_t const&, boost::mpi::communicator& world)
+      { return world.rank() == 0; });
   world.barrier();
 
   if (world.rank() != 0)
@@ -97,7 +98,8 @@ TEST(MPIObjectArchiveTest, RecordEverything) {
 
 TEST(MPIObjectArchiveTest, RecordEverythingFail) {
   MPIObjectArchive<size_t>* ar = new MPIObjectArchive<size_t>(world,
-      [](size_t const&) { return world.rank() == 0; });
+      [](size_t const&, boost::mpi::communicator& world)
+      { return world.rank() == 0; });
   world.barrier();
 
   if (world.rank() != 0)

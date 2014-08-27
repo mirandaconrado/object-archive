@@ -202,7 +202,7 @@ void MPIObjectArchive<Key>::process_invalidated(int source, Key const& key) {
 
 template <class Key>
 void MPIObjectArchive<Key>::process_inserted(int source, Key const& key) {
-  if (remote_insert_filter_(key)) {
+  if (remote_insert_filter_(key, world_)) {
     int current_request_counter = request_counter_++;
 
     Request request;

@@ -68,7 +68,8 @@ SOFTWARE.
 template <class Key>
 class MPIObjectArchive: public ObjectArchive<Key> {
   private:
-    typedef boost::function<bool (Key const&)> filter_type;
+    typedef boost::function<bool (Key const&,
+        boost::mpi::communicator&)> filter_type;
 
   public:
     // Tags that the archives use to communicate. The user can provide his own
@@ -88,12 +89,14 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     // inserted.
     MPIObjectArchive(boost::mpi::communicator& world,
         filter_type remote_insert_filter =
-        filter_type([](Key const&) { return false; }));
+        filter_type([](Key const&, boost::mpi::communicator&)
+          { return false; }));
 
     // Same as the other constructor, but user-provided tags are used.
     MPIObjectArchive(Tags const& tags, boost::mpi::communicator& world,
         filter_type remote_insert_filter =
-        filter_type([](Key const&) { return false; }));
+        filter_type([](Key const&, boost::mpi::communicator&)
+          { return false; }));
 
     ~MPIObjectArchive();
 
