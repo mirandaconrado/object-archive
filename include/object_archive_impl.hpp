@@ -265,7 +265,8 @@ size_t ObjectArchive<Key>::insert(Key const& key, T const& obj,
 template <class Key>
 size_t ObjectArchive<Key>::insert_raw(Key const& key, std::string const& data,
     bool keep_in_buffer) {
-  return insert_raw(key, std::string(data), keep_in_buffer);
+  // Makes sure we call the local method, not its virtualization
+  return ObjectArchive<Key>::insert_raw(key, std::string(data), keep_in_buffer);
 }
 
 template <class Key>
@@ -275,6 +276,7 @@ size_t ObjectArchive<Key>::insert_raw(Key const& key, std::string&& data,
   if (size > max_buffer_size_)
     keep_in_buffer = false;
 
+  // Makes sure we call the local method, not its virtualization
   ObjectArchive<Key>::remove(key);
 
   if (size + buffer_size_ > max_buffer_size_ && keep_in_buffer)
