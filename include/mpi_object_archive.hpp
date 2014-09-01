@@ -14,12 +14,22 @@
 // boost::mpi. The communicator given to the constructor must be kept valid
 // until the archive is destroyed.
 //
+// A filter can also be provided, which chooses whether values inserted in
+// remote nodes should also be stored locally based on the key. This can be
+// useful to store values to be used in a latter time when the other node may
+// not be available.
+//
+// All messages are processed using a MPIHandler, which must be provided at
+// construction. The handler's method run() inside the handler is automatically
+// called at some places for consistency.
+//
 // Threading support: to allow the archive to be used by multiple threads, set
 // ENABLE_THREADS. This should place mutex at the right places for consistency.
 //
 // Example:
 // boost::mpi::communicator world;
-// MPIObjectArchive<std::string> ar(world);
+// MPIHandler handler;
+// MPIObjectArchive<std::string> ar(world, handler);
 // ar.init("path/to/file");
 // ar.set_buffer_size("1.5G");
 //

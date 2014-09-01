@@ -1,7 +1,8 @@
-object-archive
+Object Archive
 ==============
 
-Simple C++ class to manage multiple objects storage. Requires boost and C++11.
+Simple C++ class to manage multiple objects storage. Requires C++11 and boost.
+It has "mpi-hanlder" as a submodule.
 
 When storing multiple objects, the most basic approaches are storing each object
 in a file, which requires the user to handle multiple files and possibly lots of
@@ -61,10 +62,15 @@ provide a filter that chooses whether values inserted in remote nodes should
 also be stored locally based on the key. This can be useful to store values to
 be used in a latter time when the other node may not be available.
 
+All messages are processed using a MPIHandler, which must be provided at
+construction. The handler's method `run()` inside the handler is automatically
+called at some places for consistency.
+
 Example of use:
 ```
 boost::mpi::communicator world;
-MPIObjectArchive<std::string> ar(world);
+MPIHandler handler;
+MPIObjectArchive<std::string> ar(world, handler);
 ar.init("path/to/file");
 ar.set_buffer_size("1.5G");
 
