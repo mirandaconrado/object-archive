@@ -19,35 +19,55 @@
 #ifndef __MPI_OBJECT_ARCHIVE_IMPL_HPP__
 #define __MPI_OBJECT_ARCHIVE_IMPL_HPP__
 
+#include <functional>
+
 #include "mpi_object_archive.hpp"
 
 template <class Key>
 MPIObjectArchive<Key>::MPIObjectArchive(boost::mpi::communicator& world,
-    filter_type remote_insert_filter):
-  MPIObjectArchive(Tags(), world, remote_insert_filter) { }
+    MPIHandler& handler, filter_type remote_insert_filter):
+  MPIObjectArchive(Tags(), world, handler, remote_insert_filter) { }
 
 template <class Key>
 MPIObjectArchive<Key>::MPIObjectArchive(Tags const& tags,
-    boost::mpi::communicator& world, filter_type remote_insert_filter):
+    boost::mpi::communicator& world, MPIHandler& handler,
+    filter_type remote_insert_filter):
   ObjectArchive<Key>(),
   tags_(tags),
   world_(world),
+  handler_(handler),
   remote_insert_filter_(remote_insert_filter),
   alive_(world.size(), false),
   request_counter_(0) {
+    handler.insert(tags_.alive,
+        std::bind(&MPIObjectArchive<Key>::process_alive, this,
+          std::placeholders::_1, tags.alive));
+    handler.insert(tags_.invalidated,
+        std::bind(&MPIObjectArchive<Key>::process_invalidated, this,
+          std::placeholders::_1, tags.invalidated));
+    handler.insert(tags_.inserted,
+        std::bind(&MPIObjectArchive<Key>::process_inserted, this,
+          std::placeholders::_1, tags.inserted));
+    handler.insert(tags_.request,
+        std::bind(&MPIObjectArchive<Key>::process_request, this,
+          std::placeholders::_1, tags.request));
+    handler.insert(tags_.request_data,
+        std::bind(&MPIObjectArchive<Key>::process_request_data, this,
+          std::placeholders::_1, tags.request_data));
+
     broadcast_others(tags_.alive, true, false);
-    mpi_process();
+    handler_.run();
   }
 
 template <class Key>
 MPIObjectArchive<Key>::~MPIObjectArchive() {
-  mpi_process();
+  handler_.run();
   broadcast_others(tags_.alive, false, false);
 }
 
 template <class Key>
 void MPIObjectArchive<Key>::remove(Key const& key) {
-  mpi_process();
+  handler_.run();
 
   OBJECT_ARCHIVE_MUTEX_GUARD;
 
@@ -59,7 +79,7 @@ void MPIObjectArchive<Key>::remove(Key const& key) {
 template <class Key>
 size_t MPIObjectArchive<Key>::insert_raw(Key const& key, std::string&& data,
     bool keep_in_buffer) {
-  mpi_process();
+  handler_.run();
 
   OBJECT_ARCHIVE_MUTEX_GUARD;
 
@@ -77,7 +97,7 @@ size_t MPIObjectArchive<Key>::insert_raw(Key const& key, std::string&& data,
 template <class Key>
 size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
     bool keep_in_buffer) {
-  mpi_process();
+  handler_.run();
 
   OBJECT_ARCHIVE_MUTEX_GUARD;
 
@@ -112,52 +132,10 @@ size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
 }
 
 template <class Key>
-void MPIObjectArchive<Key>::mpi_process() {
-  OBJECT_ARCHIVE_MUTEX_GUARD;
+bool MPIObjectArchive<Key>::process_alive(int source, int tag) {
+  bool alive;
+  world_.recv(source, tag, alive);
 
-  bool stop = false;
-  while (!stop) {
-    // Probes world and, if something is found, check if it's a tag it can deal
-    // right here. Otherwise, stops.
-    auto status_opt = world_.iprobe();
-    if (status_opt) {
-      auto status = status_opt.get();
-
-      if (status.tag() == tags_.alive) {
-        bool alive;
-        world_.recv(status.source(), status.tag(), alive);
-        process_alive(status.source(), alive);
-      }
-      else if (status.tag() == tags_.invalidated) {
-        Key key;
-        world_.recv(status.source(), status.tag(), key);
-        process_invalidated(status.source(), key);
-      }
-      else if (status.tag() == tags_.inserted) {
-        Key key;
-        world_.recv(status.source(), status.tag(), key);
-        process_inserted(status.source(), key);
-      }
-      else if (status.tag() == tags_.request) {
-        Request request;
-        world_.recv(status.source(), status.tag(), request);
-        process_request(status.source(), request);
-      }
-      else if (status.tag() == tags_.request_data) {
-        Request request;
-        world_.recv(status.source(), status.tag(), request);
-        process_request_data(status.source(), request);
-      }
-      else
-        stop = true;
-    }
-    else
-      stop = true;
-  }
-}
-
-template <class Key>
-void MPIObjectArchive<Key>::process_alive(int source, bool alive) {
   bool old_alive;
 
   old_alive = alive_[source];
@@ -169,16 +147,24 @@ void MPIObjectArchive<Key>::process_alive(int source, bool alive) {
     for (auto& it : requests_source_) // Check requests for dependencies
       if (it.second == source || it.second == boost::mpi::any_source)
         requests_waiting_[it.first]--;
+
+  return true;
 }
 
 template <class Key>
-void MPIObjectArchive<Key>::process_invalidated(int source, Key const& key) {
+bool MPIObjectArchive<Key>::process_invalidated(int source, int tag) {
+  Key key;
+  world_.recv(source, tag, key);
   ObjectArchive<Key>::remove(key);
+
+  return true;
 }
 
 template <class Key>
-void MPIObjectArchive<Key>::process_inserted(int source, Key const& key) {
-  process_invalidated(source, key);
+bool MPIObjectArchive<Key>::process_inserted(int source, int tag) {
+  Key key;
+  world_.recv(source, tag, key);
+  ObjectArchive<Key>::remove(key);
 
   if (remote_insert_filter_(key, world_)) {
     int current_request_counter = request_counter_++;
@@ -189,34 +175,44 @@ void MPIObjectArchive<Key>::process_inserted(int source, Key const& key) {
 
     world_.send(source, tags_.request, request);
 
-    // Avoid non-processed responses from another request
+    // Abool non-processed responses from another request
     auto response_data = get_response(source, 1, request);
 
     if (response_data) {
       ObjectArchive<Key>::insert_raw(key, response_data.get(), false);
     }
   }
+
+  return true;
 }
 
 template <class Key>
-void MPIObjectArchive<Key>::process_request(int source,
-    Request const& request) {
+bool MPIObjectArchive<Key>::process_request(int source, int tag) {
+  Request request;
+  world_.recv(source, tag, request);
+
   Response response;
   response.request = request;
   response.found = this->is_available(request.key);
 
   world_.send(source, tags_.response, response);
+
+  return true;
 }
 
 template <class Key>
-void MPIObjectArchive<Key>::process_request_data(int source,
-    Request const& request) {
+bool MPIObjectArchive<Key>::process_request_data(int source, int tag) {
+  Request request;
+  world_.recv(source, tag, request);
+
   ResponseData response_data;
   response_data.request = request;
   response_data.valid = this->is_available(request.key);
   if (response_data.valid)
     ObjectArchive<Key>::load_raw(request.key, response_data.data, false);
   world_.send(source, tags_.response_data, response_data);
+
+  return true;
 }
 
 template <class Key>
@@ -325,7 +321,7 @@ MPIObjectArchive<Key>::non_blocking_recv(int source, int tag, T& value) {
       }
     }
 
-    mpi_process();
+    handler_.run();
   }
 }
 

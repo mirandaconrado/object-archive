@@ -5,7 +5,8 @@
 #include "test_mpi.hpp"
 
 TEST(MPIObjectArchiveTest, Remove) {
-  MPIObjectArchive<size_t> ar(world);
+  MPIHandler handler(world);
+  MPIObjectArchive<size_t> ar(world, handler);
   world.barrier();
 
   ar.insert(world.rank(), world.rank()+5);
@@ -17,7 +18,7 @@ TEST(MPIObjectArchiveTest, Remove) {
     ar.remove(world.rank()-1);
   world.barrier();
 
-  ar.mpi_process();
+  handler.run();
   world.barrier();
 
   EXPECT_FALSE(ar.is_available(world.rank()));
@@ -26,7 +27,8 @@ TEST(MPIObjectArchiveTest, Remove) {
 }
 
 TEST(MPIObjectArchiveTest, InsertLoad) {
-  MPIObjectArchive<size_t> ar(world);
+  MPIHandler handler(world);
+  MPIObjectArchive<size_t> ar(world, handler);
   world.barrier();
 
   ar.insert(world.rank(), world.rank()+5);
@@ -43,7 +45,8 @@ TEST(MPIObjectArchiveTest, InsertLoad) {
 }
 
 TEST(MPIObjectArchiveTest, RecordEverything) {
-  MPIObjectArchive<size_t>* ar = new MPIObjectArchive<size_t>(world,
+  MPIHandler handler(world);
+  MPIObjectArchive<size_t>* ar = new MPIObjectArchive<size_t>(world, handler,
       [](size_t const&, boost::mpi::communicator& world)
       { return world.rank() == 0; });
   world.barrier();
@@ -55,7 +58,7 @@ TEST(MPIObjectArchiveTest, RecordEverything) {
 
   // Loops around to ensure there's enough time for processes to communicate
   for (int i = 0; i < 1000; i++)
-    ar->mpi_process();
+    handler.run();
   world.barrier();
 
   if (world.rank() != 0)
@@ -73,7 +76,8 @@ TEST(MPIObjectArchiveTest, RecordEverything) {
 }
 
 TEST(MPIObjectArchiveTest, RecordEverythingFail) {
-  MPIObjectArchive<size_t>* ar = new MPIObjectArchive<size_t>(world,
+  MPIHandler handler(world);
+  MPIObjectArchive<size_t>* ar = new MPIObjectArchive<size_t>(world, handler,
       [](size_t const&, boost::mpi::communicator& world)
       { return world.rank() == 0; });
   world.barrier();
@@ -82,7 +86,7 @@ TEST(MPIObjectArchiveTest, RecordEverythingFail) {
     ar->insert(world.rank(), world.rank()+5);
   world.barrier();
 
-  ar->mpi_process();
+  handler.run();
   // Don't stop here and let the data source die, so we can check if we
   // correctly handle failed requests
 

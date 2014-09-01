@@ -39,6 +39,7 @@
 #include <vector>
 #include <unordered_map>
 
+#include "mpi_handler.hpp"
 #include "object_archive.hpp"
 
 template <class Key>
@@ -63,14 +64,14 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     // Constructs with the default tags. If the filter returns true for a given
     // key inserted in a remote node, this archive has a copy of the value
     // inserted.
-    MPIObjectArchive(boost::mpi::communicator& world,
+    MPIObjectArchive(boost::mpi::communicator& world, MPIHandler& handler,
         filter_type remote_insert_filter =
         filter_type([](Key const&, boost::mpi::communicator&)
           { return false; }));
 
     // Same as the other constructor, but user-provided tags are used.
     MPIObjectArchive(Tags const& tags, boost::mpi::communicator& world,
-        filter_type remote_insert_filter =
+        MPIHandler& handler, filter_type remote_insert_filter =
         filter_type([](Key const&, boost::mpi::communicator&)
           { return false; }));
 
@@ -87,10 +88,6 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     // total size of the object, which is 0 if the object isn't found.
     virtual size_t load_raw(Key const& key, std::string& data,
         bool keep_in_buffer = true);
-
-    // Processes MPI messages from other nodes. This is called automatically on
-    // the other methods, but may be called directly if the node is idle.
-    void mpi_process();
 
   private:
     // Message that requests a given object associated with the given key to a
@@ -140,11 +137,11 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     };
 
     // Processes the MPI tags other nodes might have sent
-    void process_alive(int source, bool alive);
-    void process_invalidated(int source, Key const& key);
-    void process_inserted(int source, Key const& key);
-    void process_request(int source, Request const& request);
-    void process_request_data(int source, Request const& request);
+    bool process_alive(int source, int tag);
+    bool process_invalidated(int source, int tag);
+    bool process_inserted(int source, int tag);
+    bool process_request(int source, int tag);
+    bool process_request_data(int source, int tag);
 
     // Gets the data associated with a given request, returning an empty
     // optional if it's not found. If source is a given node, then n_waiting
@@ -168,6 +165,7 @@ class MPIObjectArchive: public ObjectArchive<Key> {
 
     Tags tags_; // Tags to be used by archive
     boost::mpi::communicator& world_;
+    MPIHandler& handler_;
     // When a remote node inserts a value, it notifies everyone. If this
     // function returns true, the local archive gets a copy.
     filter_type remote_insert_filter_;

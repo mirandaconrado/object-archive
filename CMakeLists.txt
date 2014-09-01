@@ -16,6 +16,7 @@ else()
 endif()
 
 include_directories(include)
+include_directories(lib/mpi_handler/include)
 include_directories(${Boost_INCLUDE_DIRS})
 
 set(CMAKE_CXX_FLAGS "-std=c++11 -Wall -Werror")
@@ -29,4 +30,5 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE "Release")
 endif()
 
+add_subdirectory(lib/mpi_handler/src)
 add_subdirectory(test)

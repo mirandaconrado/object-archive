@@ -19,6 +19,7 @@ elseif(ENABLE_MPI)
   )
 
   target_link_libraries(run_tests_mpi.bin gtest
+    mpi_handler
     ${Boost_LIBRARIES}
     ${MPI_LIB}
   )
