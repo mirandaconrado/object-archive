@@ -1,0 +1,3 @@
+[submodule "lib/mpi_handler"]
+	path = lib/mpi_handler
+	url = git@github.com:mirandaconrado/mpi-handler.git
