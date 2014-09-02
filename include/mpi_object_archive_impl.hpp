@@ -51,9 +51,15 @@ MPIObjectArchive<Key>::MPIObjectArchive(Tags const& tags,
     handler.insert(tags_.request,
         std::bind(&MPIObjectArchive<Key>::process_request, this,
           std::placeholders::_1, tags.request));
+    handler.insert(tags_.response,
+        std::bind(&MPIObjectArchive<Key>::process_response, this,
+          std::placeholders::_1, tags.response));
     handler.insert(tags_.request_data,
         std::bind(&MPIObjectArchive<Key>::process_request_data, this,
           std::placeholders::_1, tags.request_data));
+    handler.insert(tags_.response_data,
+        std::bind(&MPIObjectArchive<Key>::process_response_data, this,
+          std::placeholders::_1, tags.response_data));
 
     broadcast_others(tags_.alive, true, false);
     handler_.run();
@@ -201,6 +207,22 @@ bool MPIObjectArchive<Key>::process_request(int source, int tag) {
 }
 
 template <class Key>
+bool MPIObjectArchive<Key>::process_response(int source, int tag) {
+  Response response;
+  world_.recv(source, tag, response);
+
+  if (alive_requests_.count(response.request) > 0) {
+    Request* req = alive_requests_[response.request];
+    requests_waiting_[req]--;
+
+    if (response.found)
+      requests_found_[req] = source;
+  }
+
+  return true;
+}
+
+template <class Key>
 bool MPIObjectArchive<Key>::process_request_data(int source, int tag) {
   Request request;
   world_.recv(source, tag, request);
@@ -216,6 +238,22 @@ bool MPIObjectArchive<Key>::process_request_data(int source, int tag) {
 }
 
 template <class Key>
+bool MPIObjectArchive<Key>::process_response_data(int source, int tag) {
+  ResponseData response_data;
+  world_.recv(source, tag, response_data);
+
+  if (alive_requests_.count(response_data.request) > 0) {
+    Request* req = alive_requests_[response_data.request];
+    requests_found_[req] = source;
+    responses_data_valid_[req] = response_data.valid;
+    if (response_data.valid)
+      responses_data_[req] = response_data.data;
+  }
+
+  return true;
+}
+
+template <class Key>
 boost::optional<std::string> MPIObjectArchive<Key>::get_response(int source,
     int n_waiting, Request& request) {
   boost::optional<std::string> ret;
@@ -224,23 +262,11 @@ boost::optional<std::string> MPIObjectArchive<Key>::get_response(int source,
   requests_source_[&request] = source;
   requests_waiting_[&request] = n_waiting;
 
-  // Loops trying to get an response and processing everyone until ours is
-  // found or nobody got the data.
+  // Loops trying to get a response and processing everyone until ours is found
+  // or nobody got the data.
   while (requests_waiting_[&request] > 0 &&
-         requests_found_.count(&request) == 0) {
-    Response response;
-    auto status = non_blocking_recv(source, tags_.response, response);
-    if (!status)
-      continue;
-
-    if (alive_requests_.count(response.request) > 0) {
-      Request* req = alive_requests_[response.request];
-      requests_waiting_[req]--;
-
-      if (response.found)
-        requests_found_[req] = status->source();
-    }
-  }
+         requests_found_.count(&request) == 0)
+    handler_.run();
 
   // If found somewhere, gets the data.
   if (requests_found_.count(&request) > 0) {
@@ -248,21 +274,9 @@ boost::optional<std::string> MPIObjectArchive<Key>::get_response(int source,
 
     world_.send(source, tags_.request_data, request);
 
-    while (responses_data_valid_.count(&request) == 0) {
-      ResponseData response_data;
-      auto status = non_blocking_recv(source, tags_.response_data,
-          response_data);
-      if (!status)
-        continue;
-
-      if (alive_requests_.count(response_data.request) > 0) {
-        Request* req = alive_requests_[response_data.request];
-        requests_found_[req] = status->source();
-        responses_data_valid_[req] = response_data.valid;
-        if (response_data.valid)
-          responses_data_[req] = response_data.data;
-      }
-    }
+    // Runs until gets a response or source dies.
+    while (responses_data_valid_.count(&request) == 0 && alive_[source])
+      handler_.run();
 
     if (responses_data_valid_[&request])
       ret = boost::optional<std::string>(std::move(responses_data_[&request]));
@@ -288,41 +302,6 @@ void MPIObjectArchive<Key>::broadcast_others(int tag, T const& val,
       reqs[i] = world_.isend(i, tag, val);
 
   boost::mpi::wait_all(reqs.begin(), reqs.end());
-}
-
-template <class Key>
-template <class T>
-boost::optional<boost::mpi::status>
-MPIObjectArchive<Key>::non_blocking_recv(int source, int tag, T& value) {
-  boost::mpi::request req = world_.irecv(source, tag, value);
-
-  while (1) {
-    auto status_opt = req.test();
-    if (status_opt) // If we got an answer, returns
-      return status_opt;
-
-    // If the source is a specific node and it died, returns empty.
-    if (source != boost::mpi::any_source && !alive_[source]) {
-      req.cancel();
-      return boost::optional<boost::mpi::status>();
-    }
-
-    if (source == boost::mpi::any_source) {
-      bool found_one_alive = false;
-      for (int i = 0; i < world_.size(); i++)
-        if (alive_[i]) {
-          found_one_alive = true;
-          break;
-        }
-
-      if (!found_one_alive) { // Nobody can send the data
-        req.cancel();
-        return boost::optional<boost::mpi::status>();
-      }
-    }
-
-    handler_.run();
-  }
 }
 
 #endif

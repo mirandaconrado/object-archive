@@ -151,7 +151,9 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     bool process_invalidated(int source, int tag);
     bool process_inserted(int source, int tag);
     bool process_request(int source, int tag);
+    bool process_response(int source, int tag);
     bool process_request_data(int source, int tag);
+    bool process_response_data(int source, int tag);
 
     // Gets the data associated with a given request, returning an empty
     // optional if it's not found. If source is a given node, then n_waiting
@@ -164,14 +166,6 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     // check_alive is true, the message is only sent to alive nodes.
     template <class T>
     void broadcast_others(int tag, T const& val, bool check_alive = true);
-
-    // Tries to receive a value from a given combination of source and tag. If
-    // the source dies while waiting, returns an empty optional. This should be
-    // used everywhere instead of simply receiving, as it call mpi_processes to
-    // avoid deadlocks.
-    template <class T>
-    boost::optional<boost::mpi::status>
-    non_blocking_recv(int source, int tag, T& value);
 
     Tags tags_; // Tags to be used by archive
     boost::mpi::communicator& world_;
