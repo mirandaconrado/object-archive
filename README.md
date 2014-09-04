@@ -2,7 +2,7 @@ Object Archive
 ==============
 
 Simple C++ class to manage multiple objects storage. Requires C++11 and boost.
-It has "mpi-hanlder" as a submodule.
+It has "mpi-handler" as a submodule.
 
 When storing multiple objects, the most basic approaches are storing each object
 in a file, which requires the user to handle multiple files and possibly lots of
