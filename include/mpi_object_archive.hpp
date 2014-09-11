@@ -74,16 +74,11 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     // Constructs with the default tags. If the filter returns true for a given
     // key inserted in a remote node, this archive has a copy of the value
     // inserted.
-    MPIObjectArchive(boost::mpi::communicator& world, MPIHandler& handler,
-        filter_type remote_insert_filter =
-        filter_type([](Key const&, boost::mpi::communicator&)
-          { return false; }));
+    MPIObjectArchive(boost::mpi::communicator& world, MPIHandler& handler);
 
     // Same as the other constructor, but user-provided tags are used.
     MPIObjectArchive(Tags const& tags, boost::mpi::communicator& world,
-        MPIHandler& handler, filter_type remote_insert_filter =
-        filter_type([](Key const&, boost::mpi::communicator&)
-          { return false; }));
+        MPIHandler& handler);
 
     ~MPIObjectArchive();
 
@@ -98,6 +93,9 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     // total size of the object, which is 0 if the object isn't found.
     virtual size_t load_raw(Key const& key, std::string& data,
         bool keep_in_buffer = true);
+
+    void set_insert_filter(filter_type filter);
+    void clear_insert_filter();
 
   private:
     // Message that requests a given object associated with the given key to a

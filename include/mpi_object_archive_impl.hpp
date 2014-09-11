@@ -25,20 +25,20 @@
 
 template <class Key>
 MPIObjectArchive<Key>::MPIObjectArchive(boost::mpi::communicator& world,
-    MPIHandler& handler, filter_type remote_insert_filter):
-  MPIObjectArchive(Tags(), world, handler, remote_insert_filter) { }
+    MPIHandler& handler):
+  MPIObjectArchive(Tags(), world, handler) { }
 
 template <class Key>
 MPIObjectArchive<Key>::MPIObjectArchive(Tags const& tags,
-    boost::mpi::communicator& world, MPIHandler& handler,
-    filter_type remote_insert_filter):
+    boost::mpi::communicator& world, MPIHandler& handler):
   ObjectArchive<Key>(),
   tags_(tags),
   world_(world),
   handler_(handler),
-  remote_insert_filter_(remote_insert_filter),
   alive_(world.size(), false),
   request_counter_(0) {
+    clear_insert_filter();
+
     handler.insert(tags_.alive,
         std::bind(&MPIObjectArchive<Key>::process_alive, this,
           std::placeholders::_1, tags.alive));
@@ -135,6 +135,17 @@ size_t MPIObjectArchive<Key>::load_raw(Key const& key, std::string& data,
   }
 
   return size;
+}
+
+template <class Key>
+void MPIObjectArchive<Key>::set_insert_filter(filter_type filter) {
+  remote_insert_filter_ = filter;
+}
+
+template <class Key>
+void MPIObjectArchive<Key>::clear_insert_filter() {
+  remote_insert_filter_ =
+    [](Key const&, boost::mpi::communicator&) { return false; };
 }
 
 template <class Key>
