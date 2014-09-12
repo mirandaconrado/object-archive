@@ -40,8 +40,8 @@
 // ar.remove("filename");
 // [filedata keeps its value]
 
-#ifndef __MPI_OBJECT_ARCHIVE_HPP__
-#define __MPI_OBJECT_ARCHIVE_HPP__
+#ifndef __OBJECT_ARCHIVE_MPI_HPP__
+#define __OBJECT_ARCHIVE_MPI_HPP__
 
 #include <boost/function.hpp>
 #include <boost/mpi.hpp>
@@ -193,6 +193,6 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     std::unordered_map<Request*, std::string> responses_data_;
 };
 
-#include "mpi_object_archive_impl.hpp"
+#include "object_archive_mpi_impl.hpp"
 
 #endif

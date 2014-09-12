@@ -13,8 +13,8 @@ if(ENABLE_THREADS)
                          DEPENDS run_tests_threads.bin)
 elseif(ENABLE_MPI)
   add_executable(run_tests_mpi.bin EXCLUDE_FROM_ALL
-    mpi_object_archive.cpp
     object_archive.cpp
+    object_archive_mpi.cpp
     test_mpi_main.cpp
   )
 

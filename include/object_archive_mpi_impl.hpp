@@ -16,12 +16,12 @@
 // message and a "response_data" with the data.
 // 4.2) If a remote doesn't find the object, it sends a negative "response".
 
-#ifndef __MPI_OBJECT_ARCHIVE_IMPL_HPP__
-#define __MPI_OBJECT_ARCHIVE_IMPL_HPP__
+#ifndef __OBJECT_ARCHIVE_MPI_IMPL_HPP__
+#define __OBJECT_ARCHIVE_MPI_IMPL_HPP__
 
 #include <functional>
 
-#include "mpi_object_archive.hpp"
+#include "object_archive_mpi.hpp"
 
 template <class Key>
 MPIObjectArchive<Key>::MPIObjectArchive(boost::mpi::communicator& world,

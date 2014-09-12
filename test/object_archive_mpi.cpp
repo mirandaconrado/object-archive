@@ -1,4 +1,4 @@
-#include "mpi_object_archive.hpp"
+#include "object_archive_mpi.hpp"
 
 #include <gtest/gtest.h>
 
