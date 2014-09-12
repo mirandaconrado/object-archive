@@ -54,11 +54,13 @@
 
 template <class Key>
 class MPIObjectArchive: public ObjectArchive<Key> {
-  private:
+  public:
+    // Type of the filter for storing remote data. It receives the key inserted
+    // remotely and the MPI communicator, and returns true if the remote data
+    // should be stored locally.
     typedef boost::function<bool (Key const&,
         boost::mpi::communicator&)> filter_type;
 
-  public:
     // Tags that the archives use to communicate. The user can provide his own
     // values as long as they are different and aren't used in any other place.
     struct Tags {
@@ -94,6 +96,7 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     virtual size_t load_raw(Key const& key, std::string& data,
         bool keep_in_buffer = true);
 
+    // Sets or clears the filter of remote insertions.
     void set_insert_filter(filter_type filter);
     void clear_insert_filter();
 
@@ -165,14 +168,23 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     template <class T>
     void broadcast_others(int tag, T const& val, bool check_alive = true);
 
-    Tags tags_; // Tags to be used by archive
+    // Tags to be used by archive
+    Tags tags_;
+
     boost::mpi::communicator& world_;
+
+    // Handler for MPI messages
     MPIHandler& handler_;
+
     // When a remote node inserts a value, it notifies everyone. If this
     // function returns true, the local archive gets a copy.
     filter_type remote_insert_filter_;
-    std::vector<bool> alive_; // By default, considers itself dead
-    int request_counter_; // Incrementing counter for requests
+
+    // Vector of alive nodes. By default, considers itself dead
+    std::vector<bool> alive_;
+
+    // Incrementing counter for requests
+    int request_counter_;
 
     // Stores data associated with every request made. This should only be used
     // inside get_response and allows multiple requests to occur at the same
