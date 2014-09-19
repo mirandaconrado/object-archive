@@ -29,7 +29,7 @@ TEST_F(ObjectArchiveTest, Empty) {
   std::fstream fs(filename.string(),
       std::ios_base::in | std::ios_base::out | std::ios_base::binary);
   fs.seekp(0, std::ios_base::end);
-  EXPECT_EQ(0, fs.tellp());
+  EXPECT_EQ(sizeof(size_t), fs.tellp());
 }
 
 TEST_F(ObjectArchiveTest, StringConstructor) {

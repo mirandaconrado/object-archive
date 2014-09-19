@@ -149,8 +149,13 @@ void ObjectArchive<Key>::init(std::string const& filename,
     }
   }
   else {
+    stream_.close();
     stream_.open(filename, std::ios_base::in | std::ios_base::out |
         std::ios_base::binary | std::ios_base::trunc);
+    // Consistency on crash if there's no previous flush.
+    // Assumes there are no entries.
+    size_t n_entries = 0;
+    stream_.write((char*)&n_entries, sizeof(size_t));
   }
 }
 
