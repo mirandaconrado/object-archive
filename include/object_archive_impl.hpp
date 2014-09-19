@@ -443,7 +443,8 @@ void ObjectArchive<Key>::internal_flush() {
   temp_stream.close();
 
   boost::filesystem::remove(filename_);
-  boost::filesystem::rename(temp_filename, filename_);
+  boost::filesystem::copy(temp_filename, filename_);
+  boost::filesystem::remove(temp_filename);
 }
 
 template <class Key>
