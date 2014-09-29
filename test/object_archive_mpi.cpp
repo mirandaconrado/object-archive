@@ -44,6 +44,28 @@ TEST(MPIObjectArchiveTest, InsertLoad) {
   world.barrier();
 }
 
+TEST(MPIObjectArchiveTest, ChangeKey) {
+  MPIHandler handler(world);
+  MPIObjectArchive<size_t> ar(world, handler);
+  world.barrier();
+
+  if (world.rank() == 0)
+    ar.insert(0, 5);
+  world.barrier();
+
+  if (world.rank() == 1)
+    ar.change_key(0, 1);
+  world.barrier();
+
+  if (world.rank() == 0) {
+    int val;
+    ar.load(1, val);
+    EXPECT_EQ(5, val);
+  }
+
+  world.barrier();
+}
+
 TEST(MPIObjectArchiveTest, RecordEverything) {
   MPIHandler handler(world);
   MPIObjectArchive<size_t>* ar = new MPIObjectArchive<size_t>(world, handler);

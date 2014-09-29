@@ -48,6 +48,9 @@ MPIObjectArchive<Key>::MPIObjectArchive(Tags const& tags,
     handler.insert(tags_.inserted,
         std::bind(&MPIObjectArchive<Key>::process_inserted, this,
           std::placeholders::_1, tags.inserted));
+    handler.insert(tags_.change_key,
+        std::bind(&MPIObjectArchive<Key>::process_change_key, this,
+          std::placeholders::_1, tags.change_key));
     handler.insert(tags_.request,
         std::bind(&MPIObjectArchive<Key>::process_request, this,
           std::placeholders::_1, tags.request));
@@ -80,6 +83,21 @@ void MPIObjectArchive<Key>::remove(Key const& key) {
   broadcast_others(tags_.invalidated, key);
 
   ObjectArchive<Key>::remove(key);
+}
+
+template <class Key>
+void MPIObjectArchive<Key>::change_key(Key const& old_key, Key const& new_key) {
+  handler_.run();
+
+  OBJECT_ARCHIVE_MUTEX_GUARD;
+
+  KeyPair pair;
+  pair.old_key = old_key;
+  pair.new_key = new_key;
+
+  broadcast_others(tags_.change_key, pair);
+
+  ObjectArchive<Key>::change_key(old_key, new_key);
 }
 
 template <class Key>
@@ -200,6 +218,15 @@ bool MPIObjectArchive<Key>::process_inserted(int source, int tag) {
     }
   }
 
+  return true;
+}
+
+template <class Key>
+bool MPIObjectArchive<Key>::process_change_key(int source, int tag) {
+  KeyPair pair;
+  world_.recv(source, tag, pair);
+
+  ObjectArchive<Key>::change_key(pair.old_key, pair.new_key);
   return true;
 }
 

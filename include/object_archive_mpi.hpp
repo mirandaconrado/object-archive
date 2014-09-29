@@ -67,10 +67,11 @@ class MPIObjectArchive: public ObjectArchive<Key> {
       int alive = 0;
       int invalidated = 1;
       int inserted = 2;
-      int request = 3;
-      int response = 4;
-      int request_data = 5;
-      int response_data = 6;
+      int change_key = 3;
+      int request = 4;
+      int response = 5;
+      int request_data = 6;
+      int response_data = 7;
     };
 
     // Constructs with the default tags. If the filter returns true for a given
@@ -87,6 +88,8 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     // Removes an object entry if it's present.
     virtual void remove(Key const& key);
 
+    virtual void change_key(Key const& old_key, Key const& new_key);
+
     // Stores an object that has already been serialized.
     virtual size_t insert_raw(Key const& key, std::string&& data,
         bool keep_in_buffer = true);
@@ -101,6 +104,16 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     void clear_insert_filter();
 
   private:
+    struct KeyPair {
+      Key old_key;
+      Key new_key;
+      template<class Archive>
+      void serialize(Archive& ar, const unsigned int version) {
+        ar & old_key;
+        ar & new_key;
+      }
+    };
+
     // Message that requests a given object associated with the given key to a
     // remote node.
     struct Request {
@@ -151,6 +164,7 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     bool process_alive(int source, int tag);
     bool process_invalidated(int source, int tag);
     bool process_inserted(int source, int tag);
+    bool process_change_key(int source, int tag);
     bool process_request(int source, int tag);
     bool process_response(int source, int tag);
     bool process_request_data(int source, int tag);
