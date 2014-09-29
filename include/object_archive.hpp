@@ -104,6 +104,9 @@ class ObjectArchive {
     // Removes an object entry if it's present.
     virtual void remove(Key const& key);
 
+    // Changes the key associated with a data.
+    virtual void change_key(Key const& old_key, Key const& new_key);
+
     // Stores an object and associates it with an id and returns the total size
     // stored.
     // If the object is larger than the buffer's maximum size, it isn't

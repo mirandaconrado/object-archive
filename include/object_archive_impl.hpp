@@ -228,11 +228,34 @@ void ObjectArchive<Key>::remove(Key const& key) {
   if (it == objects_.end())
     return;
 
-  ObjectEntry& entry = it->second;
+  ObjectEntry entry = it->second;
   if (entry.data.size())
     buffer_size_ -= entry.size;
   objects_.erase(key);
   LRU_.remove(&entry);
+  must_rebuild_file_ = true;
+}
+
+template <class Key>
+void ObjectArchive<Key>::change_key(Key const& old_key, Key const& new_key) {
+  if (!is_available(old_key))
+    return;
+
+  OBJECT_ARCHIVE_MUTEX_GUARD;
+
+  auto it = objects_.find(old_key);
+  if (it == objects_.end())
+    return;
+
+  ObjectEntry entry = it->second;
+
+  objects_.erase(old_key);
+  LRU_.remove(&entry);
+
+  auto it2 = objects_.emplace(new_key, entry).first;
+  it2->second.key = &it2->first;
+  touch_LRU(&it2->second);
+
   must_rebuild_file_ = true;
 }
 

@@ -255,6 +255,27 @@ TEST_F(ObjectArchiveTest, Reopen) {
     EXPECT_EQ(0, **++available.begin());
 }
 
+TEST_F(ObjectArchiveTest, ChangeKey) {
+  size_t s1, s2;
+  {
+    ObjectArchive<size_t> ar;
+    ar.init(filename.string());
+    ar.set_buffer_size(100);
+
+    size_t old_id, new_id;
+    std::string old_val, new_val;
+    old_id = 0; old_val = "1";
+    new_id = 2; new_val = "3";
+
+    s1 = ar.insert(old_id, old_val);
+    ar.change_key(old_id, new_id);
+    s2 = ar.load(new_id, new_val);
+
+    EXPECT_EQ(s1, s2);
+    EXPECT_EQ(old_val, new_val);
+  }
+}
+
 TEST_F(ObjectArchiveTest, Remove) {
   size_t s1, s2;
   {
