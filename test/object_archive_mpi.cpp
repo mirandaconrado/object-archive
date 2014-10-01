@@ -4,46 +4,6 @@
 
 #include "test_mpi.hpp"
 
-TEST(MPIObjectArchiveTest, Remove) {
-  MPIHandler handler(world);
-  MPIObjectArchive<size_t> ar(world, handler);
-  world.barrier();
-
-  ar.insert(world.rank(), world.rank()+5);
-  world.barrier();
-
-  if (world.rank() == 0)
-    ar.remove(world.size()-1);
-  else
-    ar.remove(world.rank()-1);
-  world.barrier();
-
-  handler.run();
-  world.barrier();
-
-  EXPECT_FALSE(ar.is_available(world.rank()));
-
-  world.barrier();
-}
-
-TEST(MPIObjectArchiveTest, InsertLoad) {
-  MPIHandler handler(world);
-  MPIObjectArchive<size_t> ar(world, handler);
-  world.barrier();
-
-  ar.insert(world.rank(), world.rank()+5);
-
-  for (int i = 0; i < world.size(); i++) {
-    if (i != world.rank()) {
-      int val;
-      ar.load(i, val);
-      EXPECT_EQ(i+5, val);
-    }
-  }
-
-  world.barrier();
-}
-
 TEST(MPIObjectArchiveTest, ChangeKey) {
   MPIHandler handler(world);
   MPIObjectArchive<size_t> ar(world, handler);
@@ -61,6 +21,24 @@ TEST(MPIObjectArchiveTest, ChangeKey) {
     int val;
     ar.load(1, val);
     EXPECT_EQ(5, val);
+  }
+
+  world.barrier();
+}
+
+TEST(MPIObjectArchiveTest, InsertLoad) {
+  MPIHandler handler(world);
+  MPIObjectArchive<size_t> ar(world, handler);
+  world.barrier();
+
+  ar.insert(world.rank(), world.rank()+5);
+
+  for (int i = 0; i < world.size(); i++) {
+    if (i != world.rank()) {
+      int val;
+      ar.load(i, val);
+      EXPECT_EQ(i+5, val);
+    }
   }
 
   world.barrier();
@@ -122,6 +100,28 @@ TEST(MPIObjectArchiveTest, RecordEverythingFail) {
       ar->load(i, val);
       EXPECT_NE(i+5, val);
     }
+
+  world.barrier();
+}
+
+TEST(MPIObjectArchiveTest, Remove) {
+  MPIHandler handler(world);
+  MPIObjectArchive<size_t> ar(world, handler);
+  world.barrier();
+
+  ar.insert(world.rank(), world.rank()+5);
+  world.barrier();
+
+  if (world.rank() == 0)
+    ar.remove(world.size()-1);
+  else
+    ar.remove(world.rank()-1);
+  world.barrier();
+
+  handler.run();
+  world.barrier();
+
+  EXPECT_FALSE(ar.is_available(world.rank()));
 
   world.barrier();
 }
