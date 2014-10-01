@@ -88,6 +88,7 @@ class MPIObjectArchive: public ObjectArchive<Key> {
     // Removes an object entry if it's present.
     virtual void remove(Key const& key);
 
+    // Changes the key associated with a data.
     virtual void change_key(Key const& old_key, Key const& new_key);
 
     // Stores an object that has already been serialized.
